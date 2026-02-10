@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
 
+from app_paths import get_settings_path
 from clipboard_monitor import ClipboardMonitor
 from clipboard_watchers import create_watcher
 from notifier import Notifier
@@ -22,7 +22,7 @@ class App:
     """메인 애플리케이션 클래스"""
 
     def __init__(self):
-        self.settings_path = Path(__file__).with_name("app_settings.json")
+        self.settings_path = get_settings_path()
         self.settings = self._load_settings()
         self.recent_history: list[dict[str, str]] = list(self.settings.get("recent_history", []))
 
@@ -69,7 +69,7 @@ class App:
         return {
             "lang_code": "ko",
             "include_timestamp": False,
-            "auto_start": False,
+            "auto_start": True,
             "window_geometry": "",
             "recent_history": [],
         }

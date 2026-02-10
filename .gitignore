@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# App data
+app_settings.json
+output.txt
+
+# macOS
+.DS_Store
