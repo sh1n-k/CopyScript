@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import platform
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
@@ -13,6 +14,8 @@ from clipboard_watchers import create_watcher
 from notifier import Notifier
 from subtitle_cache import SubtitleCache
 from subtitle_fetcher import SubtitleFetcher, SUPPORTED_LANGUAGES
+
+IS_MACOS = platform.system() == "Darwin"
 
 
 DEFAULT_GEOMETRY = "460x620"
@@ -70,7 +73,12 @@ class App:
         if not saved_geometry:
             self._center_window()
 
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.menubar = None
+        if IS_MACOS:
+            self._setup_menubar()
+            self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
+        else:
+            self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         if self.auto_start_var.get():
             self.root.after(120, self._start_monitor)
@@ -323,6 +331,8 @@ class App:
         self.fetcher.set_language(code)
         self._invalidate_runtime_cache()
         self._save_settings()
+        if self.menubar:
+            self.menubar.update_language(code)
         suffix = " (다음 URL부터 적용)" if self.is_running else ""
         self._update_status(f"언어 변경: {code}{suffix} / 캐시 초기화")
 
@@ -332,6 +342,8 @@ class App:
         self.fetcher.set_timestamp(include)
         self._invalidate_runtime_cache()
         self._save_settings()
+        if self.menubar:
+            self.menubar.update_timestamp(include)
         status = "타임스탬프 포함" if include else "타임스탬프 제외"
         if self.is_running:
             status = f"{status} (다음 URL부터 적용)"
@@ -380,6 +392,8 @@ class App:
 
         self.toggle_btn.config(text="⏹ 정지")
         self._update_status("모니터링 중: YouTube URL을 복사하세요")
+        if self.menubar:
+            self.menubar.update_running(True)
 
         # 감지기 시작
         self.watcher.start()
@@ -396,6 +410,8 @@ class App:
 
         self.toggle_btn.config(text="▶ 시작")
         self._update_status("모니터링 정지")
+        if self.menubar:
+            self.menubar.update_running(False)
 
     def _on_clipboard_change(self) -> None:
         """Watcher 스레드에서 호출됨. 실제 처리는 monitor에서."""
@@ -582,6 +598,54 @@ class App:
                 anchor="s",
             )
 
+    # ── menubar ──
+
+    def _setup_menubar(self):
+        """MenuBarController 생성 + Dock 아이콘 숨김"""
+        from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
+        from menubar import MenuBarController
+
+        NSApplication.sharedApplication().setActivationPolicy_(
+            NSApplicationActivationPolicyAccessory
+        )
+
+        self.menubar = MenuBarController(
+            on_toggle=self._toggle_monitor,
+            on_language=self._menubar_on_language,
+            on_timestamp=self._menubar_on_timestamp,
+            on_show_settings=self._show_window,
+            on_quit=self._on_close,
+            initial_lang=self._current_language_code(),
+            initial_timestamp=self.timestamp_var.get(),
+            initial_running=self.is_running,
+        )
+
+    def _on_window_close(self):
+        """창 닫기(빨간 X) → 숨김 (종료 아님)"""
+        self.root.withdraw()
+
+    def _show_window(self):
+        """메뉴바에서 '설정 열기' → 창 재표시 + 포커스"""
+        from AppKit import NSApplication
+
+        self.root.deiconify()
+        self.root.lift()
+        NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+
+    def _menubar_on_language(self, code: str):
+        """메뉴바 언어 선택 → tkinter 변수 갱신 → 기존 핸들러 호출"""
+        label = self.code_to_label.get(code)
+        if label:
+            self.lang_var.set(label)
+            self._on_language_change()
+
+    def _menubar_on_timestamp(self):
+        """메뉴바 타임스탬프 토글 → tkinter 변수 반전 → 기존 핸들러 호출"""
+        self.timestamp_var.set(not self.timestamp_var.get())
+        self._on_timestamp_change()
+
+    # ── lifecycle ──
+
     def _on_close(self):
         """앱 종료"""
         if self._closing:
@@ -592,6 +656,8 @@ class App:
             self._hide_history_tooltip()
             self._save_settings()
             self._stop_monitor()
+            if self.menubar:
+                self.menubar.cleanup()
         finally:
             # after 큐에 남은 콜백이 있어도 _closing 가드가 막아줌
             self.root.destroy()

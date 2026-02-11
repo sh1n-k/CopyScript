@@ -18,18 +18,26 @@ source "$VENV/bin/activate"
 echo "=== PyInstaller 설치 확인 ==="
 pip install --quiet pyinstaller
 
+SPEC_FILE="$APP_NAME.spec"
+
 echo "=== 이전 빌드 정리 ==="
-rm -rf build dist *.spec
+rm -rf build dist
 
 echo "=== .app 번들 빌드 ==="
-pyinstaller \
-  --windowed \
-  --onedir \
-  --name "$APP_NAME" \
-  --noconfirm \
-  --clean \
-  --hidden-import=AppKit \
-  "$ENTRY"
+if [ -f "$SPEC_FILE" ]; then
+  echo ".spec 파일 사용: $SPEC_FILE"
+  pyinstaller --noconfirm --clean "$SPEC_FILE"
+else
+  echo ".spec 파일 없음 — 기본 옵션으로 빌드"
+  pyinstaller \
+    --windowed \
+    --onedir \
+    --name "$APP_NAME" \
+    --noconfirm \
+    --clean \
+    --hidden-import=AppKit \
+    "$ENTRY"
+fi
 
 echo "=== ad-hoc 코드 서명 ==="
 # 내부 바이너리를 안에서 바깥 순서로 서명
