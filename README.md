@@ -1,5 +1,9 @@
 # CopyScript (YouTube 자막 복사 앱)
 
+[![Release](https://img.shields.io/github/v/release/sh1n-k/CopyScript?sort=semver)](https://github.com/sh1n-k/CopyScript/releases)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-0A84FF)
+
 **클립보드에 복사한 YouTube URL을 감지해서, 해당 영상 자막을 다시 클립보드에 넣어주는 데스크톱 앱**입니다.
 
 URL 복사 한 번으로 자막 텍스트를 바로 붙여넣을 수 있어, 요약/번역/메모 작업 시간을 줄이는 것이 목적입니다.
