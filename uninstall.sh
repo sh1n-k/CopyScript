@@ -34,7 +34,8 @@ fi
 # --- 설정 데이터 ---
 if [ -d "$DATA_DIR" ]; then
     echo ""
-    read -rp "설정 데이터도 삭제하시겠습니까? ($DATA_DIR) [y/N]: " answer
+    printf "설정 데이터도 삭제하시겠습니까? (%s) [y/N]: " "$DATA_DIR"
+    read -r answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
         rm -rf "$DATA_DIR"
         echo "  설정 데이터 삭제 완료"

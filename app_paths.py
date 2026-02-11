@@ -14,3 +14,19 @@ def get_data_dir() -> Path:
 
 def get_settings_path() -> Path:
     return get_data_dir() / "app_settings.json"
+
+
+def get_cache_dir() -> Path:
+    cache_dir = get_data_dir() / "subtitle_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def get_cache_items_dir() -> Path:
+    items_dir = get_cache_dir() / "items"
+    items_dir.mkdir(parents=True, exist_ok=True)
+    return items_dir
+
+
+def get_cache_index_path() -> Path:
+    return get_cache_dir() / "index.json"

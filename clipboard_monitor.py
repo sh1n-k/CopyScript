@@ -9,6 +9,7 @@ from typing import Callable, Optional
 import pyperclip
 
 from subtitle_fetcher import SubtitleFetcher
+from subtitle_cache import SubtitleCache
 from notifier import Notifier
 from url_parser import extract_video_id
 
@@ -30,6 +31,7 @@ class ClipboardMonitor:
         on_status_change: Optional[StatusCallback] = None,
         on_processed: Optional[ProcessedCallback] = None,
         notifier: Optional[Notifier] = None,
+        subtitle_cache: Optional[SubtitleCache] = None,
         max_processed: int = 100,
     ):
         """
@@ -38,12 +40,14 @@ class ClipboardMonitor:
             on_status_change: 상태 변경 콜백 (status: str, is_error: bool)
             on_processed: 처리 결과 콜백 (video_id, success, detail)
             notifier: Notifier 인스턴스 (선택)
+            subtitle_cache: 자막 텍스트 캐시 (선택)
             max_processed: 처리한 video_id LRU 캐시 최대 크기
         """
         self.fetcher = fetcher
         self.on_status_change = on_status_change
         self.on_processed = on_processed
         self.notifier = notifier
+        self.subtitle_cache = subtitle_cache
 
         self._last_clipboard: str = ""
         self._max_processed = max(10, int(max_processed))
@@ -147,12 +151,12 @@ class ClipboardMonitor:
                 return False
 
             if current_video_id in self._processed_ids:
-                status_msg = f"이미 처리됨: {current_video_id[:8]}..."
-                self._update_status(status_msg)
-                self._notify("이미 처리됨", f"{current_video_id}")
-                # LRU 갱신
                 self._processed_ids.move_to_end(current_video_id)
-                return False
+                if self._try_copy_from_cache(current_video_id):
+                    return True
+                self._update_status(
+                    f"이미 처리됨(캐시 없음): {current_video_id[:8]}... 재시도",
+                )
 
             self._update_status(f"URL 감지됨: {current_video_id[:8]}...")
             self._update_status(f"자막 추출 중: {current_video_id}...")
@@ -188,6 +192,7 @@ class ClipboardMonitor:
             self._last_clipboard = text
 
             self._mark_processed(current_video_id)
+            self._put_cache(current_video_id, text)
 
             line_count = text.count("\n") + 1
             status_msg = f"완료! {line_count}줄 복사됨"
@@ -212,3 +217,49 @@ class ClipboardMonitor:
         """상태 초기화"""
         self._last_clipboard = ""
         self._busy = False
+
+    def reset_processed(self) -> None:
+        """이미 처리한 video_id 캐시 초기화"""
+        self._processed_ids.clear()
+
+    def _try_copy_from_cache(self, video_id: str) -> bool:
+        if not self.subtitle_cache:
+            return False
+        cached_text = self.subtitle_cache.get(
+            video_id,
+            self.fetcher.preferred_lang,
+            self.fetcher.include_timestamp,
+        )
+        if not cached_text:
+            return False
+
+        self._update_status("캐시 자막 복사 중...")
+        try:
+            pyperclip.copy(cached_text)
+        except Exception:
+            status_msg = self._clipboard_copy_error()
+            self._update_status(status_msg, is_error=True)
+            self._notify("자막 복사 실패", f"{video_id} - {status_msg}")
+            self._emit_processed(video_id, False, status_msg)
+            return False
+
+        self._last_clipboard = cached_text
+        line_count = cached_text.count("\n") + 1
+        status_msg = f"이미 처리됨: 캐시 재복사 완료 ({line_count}줄)"
+        self._update_status(status_msg)
+        self._notify("자막 재복사 완료", f"{video_id} - {line_count}줄")
+        self._emit_processed(video_id, True, f"캐시 재복사 {line_count}줄")
+        return True
+
+    def _put_cache(self, video_id: str, text: str) -> None:
+        if not self.subtitle_cache:
+            return
+        try:
+            self.subtitle_cache.put(
+                video_id,
+                self.fetcher.preferred_lang,
+                self.fetcher.include_timestamp,
+                text,
+            )
+        except Exception:
+            pass
