@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.pytest_cache/
+.mypy_cache/
 
 # PyInstaller
 build/
@@ -12,6 +14,12 @@ dist/
 # App data
 app_settings.json
 output.txt
+*.log
 
 # macOS
 .DS_Store
+
+# IDE / tool
+.idea/
+.vscode/
+.claude/
