@@ -1,4 +1,4 @@
-# CopyScript (YouTube 자막 복사 앱)
+# CopyScript
 
 [![Release](https://img.shields.io/github/v/release/sh1n-k/CopyScript?sort=semver)](https://github.com/sh1n-k/CopyScript/releases)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
@@ -25,10 +25,12 @@ python main.py
 ```
 
 ## 사용 방법
-1. 앱을 실행하고 모니터링을 시작합니다.
-2. YouTube 영상 URL을 복사합니다.
-3. 잠시 후 자막이 클립보드로 교체됩니다.
-4. 원하는 곳에 붙여넣기 합니다.
+1. 앱을 실행하면 메뉴바에 `CC` 아이콘이 나타납니다.
+2. 설정 화면이 필요하면 메뉴바 `CC > 설정 열기`를 누릅니다.
+3. 모니터링을 시작합니다.
+4. YouTube 영상 URL을 복사합니다.
+5. 잠시 후 자막이 클립보드로 교체됩니다.
+6. 원하는 곳에 붙여넣기 합니다.
 
 예시: 메모장에 링크를 복사했다가, 바로 `Cmd+V` 하면 자막 본문이 붙습니다.
 

@@ -10,7 +10,6 @@ if platform.system() != "Darwin":
 
 import objc
 from AppKit import (
-    NSApplication,
     NSMenu,
     NSMenuItem,
     NSStatusBar,

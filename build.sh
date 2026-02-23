@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-APP_NAME="YouTube 자막 복사"
+APP_NAME="CopyScript"
 ENTRY="main.py"
 VENV="$SCRIPT_DIR/.venv"
 

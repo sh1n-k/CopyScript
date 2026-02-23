@@ -1,4 +1,4 @@
-# CopyScript (YouTube 자막 복사 앱)
+# CopyScript
 
 ## 프로젝트 개요
 클립보드에 복사한 YouTube URL을 자동 감지하여 해당 영상의 자막을 클립보드에 넣어주는 macOS/Windows 데스크톱 앱.
@@ -47,7 +47,7 @@ pytest tests/
 
 ## 빌드
 ```bash
-./build.sh          # dist/YouTube 자막 복사.app 생성
+./build.sh          # dist/CopyScript.app 생성
 ./install.sh        # /Applications에 설치 + 로그인 자동실행
 ./uninstall.sh      # 제거
 ```

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Notifier:
-    app_name: str = "YouTube 자막 복사"
+    app_name: str = "CopyScript"
 
     def notify(self, title: str, message: str) -> None:
         system = platform.system()

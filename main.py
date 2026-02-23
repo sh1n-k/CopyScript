@@ -1,4 +1,4 @@
-"""YouTube 자막 클립보드 복사 앱 - 메인 GUI"""
+"""CopyScript - 메인 GUI"""
 
 from __future__ import annotations
 
@@ -36,9 +36,12 @@ class App:
         self.cache = SubtitleCache(max_items=int(self.settings.get("cache_max_items", 100)))
 
         self.root = tk.Tk()
-        self.root.title("YouTube 자막 복사")
+        self.root.title("CopyScript")
         self.root.geometry(DEFAULT_GEOMETRY)
         self.root.resizable(False, False)
+        if IS_MACOS:
+            # macOS에서는 시작 시 설정 창을 숨기고 메뉴바에서만 접근
+            self.root.withdraw()
 
         saved_geometry = self.settings.get("window_geometry")
         if isinstance(saved_geometry, str) and saved_geometry:

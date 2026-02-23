@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="YouTube 자막 복사"
+APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
 DEST_APP="/Applications/$APP_NAME.app"
 PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"

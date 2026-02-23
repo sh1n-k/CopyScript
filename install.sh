@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="YouTube 자막 복사"
+APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_APP="$SCRIPT_DIR/dist/$APP_NAME.app"
@@ -40,6 +40,7 @@ cat > "$PLIST_PATH" << EOF
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/open</string>
+        <string>-j</string>
         <string>-a</string>
         <string>$DEST_APP</string>
     </array>
@@ -59,5 +60,6 @@ echo ""
 echo "=== 설치 완료 ==="
 echo "  앱 위치: $DEST_APP"
 echo "  자동실행: 로그인 시 자동 시작됩니다"
+echo "  설정 화면: 메뉴바 CC > 설정 열기"
 echo ""
 echo "  제거하려면: ./uninstall.sh"
