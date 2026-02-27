@@ -1,8 +1,8 @@
 # CopyScript
 
-[![Release](https://img.shields.io/github/v/release/sh1n-k/CopyScript?sort=semver)](https://github.com/sh1n-k/CopyScript/releases)
-![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-0A84FF)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Tkinter](https://img.shields.io/badge/Tkinter-GUI-FFCC33)
+![YouTube Transcript](https://img.shields.io/badge/YouTube-Transcript%20Fetch-FF0000?logo=youtube&logoColor=white)
 
 **클립보드에 복사한 YouTube URL을 감지해서, 해당 영상 자막을 다시 클립보드에 넣어주는 데스크톱 앱**입니다.
 
