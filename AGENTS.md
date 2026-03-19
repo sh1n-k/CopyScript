@@ -26,14 +26,14 @@
   - `pgrep -fl "CopyScript|YouTube 자막 복사"`
 
 ## Project Structure
-- `main.py`: Tkinter app lifecycle and UI, plus macOS menubar integration.
-- `menubar.py`: macOS `NSStatusItem` menu controller.
-- `clipboard_monitor.py`: URL detection and transcript copy pipeline.
-- `clipboard_watchers.py`: platform clipboard change watchers.
-- `subtitle_fetcher.py`: transcript retrieval and language fallback.
-- `subtitle_cache.py`: local LRU cache.
+- `copyscript/app/`: settings persistence and runtime lifecycle.
+- `copyscript/config/`: shared constants, language definitions, dataclasses.
+- `copyscript/core/`: URL parsing, transcript fetch, cache, clipboard pipeline.
+- `copyscript/platform/`: OS-specific paths, watchers, notifications, macOS menubar.
+- `copyscript/ui/`: Tkinter window, panels, theme.
+- Root modules remain as compatibility wrappers for old entry points/imports.
 - `install.sh` / `uninstall.sh`: macOS install, LaunchAgent registration, removal.
-- `tests/`: pytest unit tests.
+- `tests/`: unit tests.
 
 ## Code Style And Conventions
 - Use Python 3.10+ type hints.

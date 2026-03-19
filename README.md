@@ -39,6 +39,23 @@ python main.py
 ./build.sh
 ```
 
+## 구조 개편
+
+이번 리팩터링부터 런타임 코드는 `copyscript/` 패키지 아래로 정리됩니다.
+
+```text
+copyscript/
+  app/       # 설정 저장, 런타임 상태, 모니터링 lifecycle
+  config/    # 언어 목록, 공용 상수, 데이터 모델
+  core/      # URL 파싱, 자막 추출, 캐시, 클립보드 처리 파이프라인
+  platform/  # 경로, 알림, 클립보드 watcher, macOS menubar
+  ui/        # Tkinter window, 패널, theme
+```
+
+- 루트의 `main.py`, `subtitle_fetcher.py` 같은 파일은 하위 호환용 얇은 wrapper 입니다.
+- 새 기능 추가는 가능한 한 `copyscript/` 내부에서만 진행하는 것을 권장합니다.
+- 테스트 가능한 로직은 `copyscript/core/`, `copyscript/app/`, `copyscript/platform/`에 두고, `copyscript/ui/`는 화면 조립과 이벤트 연결에 집중합니다.
+
 ## 요구 사항
 - Python 3.10+
 - macOS 또는 Windows

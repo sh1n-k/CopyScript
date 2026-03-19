@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 APP_NAME="CopyScript"
-ENTRY="main.py"
+ENTRY="copyscript/main.py"
 VENV="$SCRIPT_DIR/.venv"
 
 # venv 활성화
