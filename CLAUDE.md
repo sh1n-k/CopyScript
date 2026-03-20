@@ -1,14 +1,12 @@
 # CopyScript
 
 ## Run
-- `python3 -m venv .venv`
-- `source .venv/bin/activate`
-- `pip install -r requirements.txt`
-- `python main.py`
+- `uv sync --group dev`
+- `uv run python main.py`
 
 ## Verify
-- `ruff check .`
-- `pytest tests/`
+- `uv run ruff check .`
+- `uv run pytest`
 - fallback: `python3 -m unittest discover -s tests -v`
 - fallback: `python3 -m compileall .`
 

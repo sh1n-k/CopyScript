@@ -6,18 +6,16 @@
 - Main success condition for agent tasks: keep clipboard-processing behavior stable and avoid breaking startup/install flows.
 
 ## Setup Commands
-- Create virtualenv: `python3 -m venv .venv`
-- Activate virtualenv: `source .venv/bin/activate`
-- Install dependencies: `pip install -r requirements.txt`
-- Run app (dev): `python main.py`
+- Sync environment: `uv sync --group dev`
+- Run app (dev): `uv run python main.py`
 - Build macOS app: `./build.sh`
 - Install built app + LaunchAgent: `./install.sh`
 - Uninstall app: `./uninstall.sh`
 
 ## Test Commands
-- Lint (preferred): `ruff check .`
+- Lint (preferred): `uv run ruff check .`
 - If `ruff` is unavailable, run at least syntax validation: `python -m compileall .`
-- Unit tests: `pytest tests/`
+- Unit tests: `uv run pytest`
 - E2E (startup/install path on macOS):
   - `./build.sh`
   - `./install.sh`

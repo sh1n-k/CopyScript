@@ -5,18 +5,37 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 APP_NAME="CopyScript"
-ENTRY="copyscript/main.py"
-VENV="$SCRIPT_DIR/.venv"
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3)}"
 
-# venv 활성화
-if [ ! -d "$VENV" ]; then
-    echo "오류: .venv 디렉토리를 찾을 수 없습니다."
+if ! command -v uv >/dev/null 2>&1; then
+    echo "오류: uv 명령을 찾을 수 없습니다."
     exit 1
 fi
-source "$VENV/bin/activate"
 
-echo "=== PyInstaller 설치 확인 ==="
-pip install --quiet pyinstaller
+echo "=== uv 환경 동기화 ==="
+uv sync --group dev --python "$PYTHON_BIN"
+
+echo "=== 필수 모듈 확인 ==="
+uv run python - <<'PY'
+import importlib
+import sys
+
+required_modules = ("tkinter", "youtube_transcript_api")
+missing = []
+for module_name in required_modules:
+    try:
+        importlib.import_module(module_name)
+    except Exception as error:
+        missing.append(f"{module_name}: {error}")
+
+if missing:
+    print("다음 모듈을 불러오지 못했습니다:")
+    for item in missing:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("필수 모듈 import 확인 완료")
+PY
 
 SPEC_FILE="$APP_NAME.spec"
 
@@ -26,17 +45,18 @@ rm -rf build dist
 echo "=== .app 번들 빌드 ==="
 if [ -f "$SPEC_FILE" ]; then
   echo ".spec 파일 사용: $SPEC_FILE"
-  pyinstaller --noconfirm --clean "$SPEC_FILE"
+  uv run pyinstaller --noconfirm --clean "$SPEC_FILE"
 else
   echo ".spec 파일 없음 — 기본 옵션으로 빌드"
-  pyinstaller \
+  uv run pyinstaller \
     --windowed \
     --onedir \
     --name "$APP_NAME" \
     --noconfirm \
     --clean \
     --hidden-import=AppKit \
-    "$ENTRY"
+    --hidden-import=youtube_transcript_api \
+    copyscript/main.py
 fi
 
 echo "=== ad-hoc 코드 서명 ==="

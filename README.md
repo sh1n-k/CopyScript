@@ -18,10 +18,8 @@ URL 복사 한 번으로 자막 텍스트를 바로 붙여넣을 수 있어, 요
 
 ## 빠른 실행
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python main.py
+uv sync --group dev
+uv run python main.py
 ```
 
 ## 사용 방법
@@ -37,6 +35,12 @@ python main.py
 ## 빌드 (선택)
 ```bash
 ./build.sh
+```
+
+## 개발 검증
+```bash
+uv run ruff check .
+uv run pytest
 ```
 
 ## 구조 개편

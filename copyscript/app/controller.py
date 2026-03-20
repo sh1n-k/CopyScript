@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Callable
 
 from copyscript.app.settings_store import SettingsStore
-from copyscript.config.models import AppSettings, HistoryEntry, ProcessingOptions
+from copyscript.config.models import HistoryEntry, ProcessingOptions
 from copyscript.core.clipboard_monitor import ClipboardMonitor
 from copyscript.core.subtitle_cache import SubtitleCache
 from copyscript.core.subtitle_fetcher import SubtitleFetcher

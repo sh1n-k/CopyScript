@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from copyscript.config.languages import SUPPORTED_LANGUAGES
 from copyscript.config.models import ProcessingOptions
 
 try:

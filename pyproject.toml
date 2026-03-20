@@ -1,0 +1,36 @@
+[project]
+name = "copyscript"
+version = "0.1.0"
+description = "Desktop app that replaces copied YouTube URLs with transcript text."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyperclip==1.11.0",
+    "youtube-transcript-api==1.2.3",
+    "pyobjc-core==12.1; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa==12.1; sys_platform == 'darwin'",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.0",
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+"app_paths.py" = ["F403"]
+"clipboard_monitor.py" = ["F403"]
+"clipboard_watchers.py" = ["F403"]
+"menubar.py" = ["F403"]
+"notifier.py" = ["F403"]
+"subtitle_cache.py" = ["F403"]
+"subtitle_fetcher.py" = ["F403"]
+"url_parser.py" = ["F403"]
