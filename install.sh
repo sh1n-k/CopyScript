@@ -6,6 +6,7 @@ BUNDLE_ID="com.ytsubtitlecopy.app"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_APP="$SCRIPT_DIR/dist/$APP_NAME.app"
 DEST_APP="/Applications/$APP_NAME.app"
+EXEC_PATH="$DEST_APP/Contents/MacOS/$APP_NAME"
 PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 
 # --- 빌드 확인 ---
@@ -39,10 +40,7 @@ cat > "$PLIST_PATH" << EOF
     <string>$BUNDLE_ID</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/open</string>
-        <string>-j</string>
-        <string>-a</string>
-        <string>$DEST_APP</string>
+        <string>$EXEC_PATH</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
