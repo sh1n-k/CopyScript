@@ -1,12 +1,30 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+import platform
+
+
+project_root = Path(SPECPATH)
+is_macos = platform.system() == "Darwin"
+is_windows = platform.system() == "Windows"
+hiddenimports = ["youtube_transcript_api"]
+datas = []
+icon_path = None
+
+if is_macos:
+    hiddenimports.append("AppKit")
+
+if is_windows:
+    hiddenimports.extend(["pystray", "PIL", "win11toast"])
+    icon_path = project_root / "assets" / "CopyScript.ico"
+    datas.append((str(icon_path), "assets"))
 
 a = Analysis(
-    ['copyscript/main.py'],
+    ["copyscript/main.py"],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=['AppKit', 'youtube_transcript_api'],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -21,7 +39,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='CopyScript',
+    name="CopyScript",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -32,6 +50,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(icon_path) if icon_path else None,
 )
 coll = COLLECT(
     exe,
@@ -40,11 +59,13 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='CopyScript',
+    name="CopyScript",
 )
-app = BUNDLE(
-    coll,
-    name='CopyScript.app',
-    icon=None,
-    bundle_identifier=None,
-)
+
+if is_macos:
+    app = BUNDLE(
+        coll,
+        name="CopyScript.app",
+        icon=None,
+        bundle_identifier=None,
+    )

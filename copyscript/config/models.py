@@ -42,7 +42,8 @@ class HistoryEntry:
 class AppSettings:
     lang_code: str = DEFAULT_LANG_CODE
     include_timestamp: bool = False
-    auto_start: bool = True
+    monitor_on_launch: bool = True
+    launch_at_login: bool = True
     cache_max_items: int = DEFAULT_CACHE_MAX_ITEMS
     window_geometry: str = ""
     recent_history: list[HistoryEntry] = field(default_factory=list)
@@ -51,7 +52,8 @@ class AppSettings:
         return {
             "lang_code": self.lang_code,
             "include_timestamp": self.include_timestamp,
-            "auto_start": self.auto_start,
+            "monitor_on_launch": self.monitor_on_launch,
+            "launch_at_login": self.launch_at_login,
             "cache_max_items": self.cache_max_items,
             "window_geometry": self.window_geometry,
             "recent_history": [item.to_dict() for item in self.recent_history],

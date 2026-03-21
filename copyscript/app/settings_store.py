@@ -19,7 +19,8 @@ class SettingsStore:
                 if isinstance(loaded, dict):
                     settings.lang_code = str(loaded.get("lang_code", settings.lang_code))
                     settings.include_timestamp = bool(loaded.get("include_timestamp", settings.include_timestamp))
-                    settings.auto_start = bool(loaded.get("auto_start", settings.auto_start))
+                    settings.monitor_on_launch = self._load_monitor_on_launch(loaded, settings)
+                    settings.launch_at_login = bool(loaded.get("launch_at_login", settings.launch_at_login))
                     settings.window_geometry = str(loaded.get("window_geometry", settings.window_geometry))
                     settings.cache_max_items = self._sanitize_cache_size(loaded.get("cache_max_items"))
                     settings.recent_history = self._sanitize_history(loaded.get("recent_history"))
@@ -52,3 +53,8 @@ class SettingsStore:
             return max(1, int(value))
         except Exception:
             return DEFAULT_CACHE_MAX_ITEMS
+
+    def _load_monitor_on_launch(self, loaded: dict, settings: AppSettings) -> bool:
+        if "monitor_on_launch" in loaded:
+            return bool(loaded.get("monitor_on_launch", settings.monitor_on_launch))
+        return bool(loaded.get("auto_start", settings.monitor_on_launch))

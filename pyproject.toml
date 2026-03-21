@@ -9,6 +9,9 @@ dependencies = [
     "youtube-transcript-api==1.2.3",
     "pyobjc-core==12.1; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa==12.1; sys_platform == 'darwin'",
+    "pillow>=11.3.0; sys_platform == 'win32'",
+    "pystray>=0.19.5; sys_platform == 'win32'",
+    "win11toast>=0.35; sys_platform == 'win32'",
 ]
 
 [dependency-groups]

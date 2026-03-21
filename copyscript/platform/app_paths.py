@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import sys
 from pathlib import Path
 
 from copyscript.config.constants import APP_DATA_DIR_NAME
@@ -37,3 +38,13 @@ def get_cache_items_dir() -> Path:
 
 def get_cache_index_path() -> Path:
     return get_cache_dir() / "index.json"
+
+
+def get_resource_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "assets"
+    return Path(__file__).resolve().parents[2] / "assets"
+
+
+def get_icon_path() -> Path:
+    return get_resource_dir() / "CopyScript.ico"
