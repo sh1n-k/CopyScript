@@ -17,49 +17,58 @@ class SettingsPanel(ttk.Frame):
         on_timestamp_change,
         on_auto_start_change,
         on_cache_size_change,
+        on_toggle,
+        on_clear,
+        on_quit,
     ):
-        super().__init__(parent, style="Root.TFrame")
+        super().__init__(parent, style="Card.TFrame", padding=12)
         self.labels, self.label_to_code, self.code_to_label = build_language_maps()
         self._on_language_change = on_language_change
         self._on_timestamp_change = on_timestamp_change
         self._on_auto_start_change = on_auto_start_change
         self._on_cache_size_change = on_cache_size_change
 
-        lang_frame = ttk.Frame(self, style="Root.TFrame")
-        lang_frame.pack(fill=tk.X, pady=(0, 6))
-        ttk.Label(lang_frame, text="언어:", style="Body.TLabel").pack(side=tk.LEFT)
+        ttk.Label(self, text="사용자 설정 및 제어", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
+
+        form = ttk.Frame(self, style="Card.TFrame")
+        form.pack(fill=tk.X)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Label(form, text="언어", style="CardMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 6))
 
         initial_lang = self.code_to_label.get(settings.lang_code, self.labels[0])
         self.lang_var = tk.StringVar(value=initial_lang)
         self.lang_combo = ttk.Combobox(
-            lang_frame,
+            form,
             textvariable=self.lang_var,
             values=self.labels,
             state="readonly",
             width=24,
         )
-        self.lang_combo.pack(side=tk.LEFT, padx=(10, 0))
+        self.lang_combo.grid(row=0, column=1, sticky="w", pady=(0, 6))
         self.lang_combo.bind("<<ComboboxSelected>>", self._handle_language)
 
+        ttk.Label(form, text="출력 형식", style="CardMuted.TLabel").grid(row=1, column=0, sticky="nw", pady=(0, 6))
         self.timestamp_var = tk.BooleanVar(value=settings.include_timestamp)
         ttk.Checkbutton(
-            self,
+            form,
             text="타임스탬프 포함 [00:00]",
             variable=self.timestamp_var,
             command=self._handle_timestamp,
-        ).pack(anchor=tk.W)
+        ).grid(row=1, column=1, sticky="w", pady=(0, 6))
 
+        ttk.Label(form, text="시작 옵션", style="CardMuted.TLabel").grid(row=2, column=0, sticky="nw", pady=(0, 6))
         self.auto_start_var = tk.BooleanVar(value=settings.auto_start)
         ttk.Checkbutton(
-            self,
+            form,
             text="앱 실행 시 모니터링 자동 시작",
             variable=self.auto_start_var,
             command=self._handle_auto_start,
-        ).pack(anchor=tk.W)
+        ).grid(row=2, column=1, sticky="w", pady=(0, 6))
 
-        cache_frame = ttk.Frame(self, style="Root.TFrame")
-        cache_frame.pack(anchor=tk.W, pady=(4, 0))
-        ttk.Label(cache_frame, text="캐시 길이(LRU):", style="Body.TLabel").pack(side=tk.LEFT)
+        ttk.Label(form, text="캐시 길이", style="CardMuted.TLabel").grid(row=3, column=0, sticky="w")
+        cache_frame = ttk.Frame(form, style="Card.TFrame")
+        cache_frame.grid(row=3, column=1, sticky="w")
         self.cache_size_var = tk.IntVar(value=settings.cache_max_items)
         self.cache_spin = ttk.Spinbox(
             cache_frame,
@@ -69,9 +78,18 @@ class SettingsPanel(ttk.Frame):
             width=6,
             command=self._handle_cache_size,
         )
-        self.cache_spin.pack(side=tk.LEFT, padx=(8, 0))
+        self.cache_spin.pack(side=tk.LEFT)
+        ttk.Label(cache_frame, text="항목", style="CardMuted.TLabel").pack(side=tk.LEFT, padx=(8, 0))
         self.cache_spin.bind("<FocusOut>", self._handle_cache_size)
         self.cache_spin.bind("<Return>", self._handle_cache_size)
+
+        ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(10, 10))
+        button_row = ttk.Frame(self, style="Card.TFrame")
+        button_row.pack(fill=tk.X)
+        self.toggle_button = ttk.Button(button_row, text="▶ 시작", command=on_toggle, width=12, style="Primary.TButton")
+        self.toggle_button.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_row, text="내역 지우기", command=on_clear, width=12).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_row, text="종료", command=on_quit, width=12).pack(side=tk.LEFT)
 
     def set_language_code(self, code: str) -> None:
         label = self.code_to_label.get(code)
@@ -80,6 +98,9 @@ class SettingsPanel(ttk.Frame):
 
     def set_timestamp(self, include: bool) -> None:
         self.timestamp_var.set(include)
+
+    def set_running(self, is_running: bool) -> None:
+        self.toggle_button.config(text="⏹ 정지" if is_running else "▶ 시작")
 
     def _current_language_code(self) -> str:
         selected = self.lang_combo.get()

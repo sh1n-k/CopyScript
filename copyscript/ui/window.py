@@ -7,7 +7,7 @@ from tkinter import ttk
 
 from copyscript.app.controller import AppController
 from copyscript.config.constants import DEFAULT_GEOMETRY, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH
-from copyscript.ui.panels import CachePanel, ControlsPanel, HistoryPanel, SettingsPanel, StatusPanel
+from copyscript.ui.panels import CachePanel, HistoryPanel, SettingsPanel, StatusPanel
 from copyscript.ui.theme import apply_theme
 
 IS_MACOS = platform.system() == "Darwin"
@@ -58,19 +58,15 @@ class AppWindow:
             on_timestamp_change=self._on_timestamp_change,
             on_auto_start_change=self.controller.update_auto_start,
             on_cache_size_change=self.controller.update_cache_size,
-        )
-        self.settings_panel.pack(fill=tk.X, pady=(0, 8))
-        self.status_panel = StatusPanel(main_frame)
-        self.status_panel.pack(fill=tk.X, pady=(0, 10))
-        self.controls_panel = ControlsPanel(
-            main_frame,
             on_toggle=self.controller.toggle_monitoring,
             on_clear=self._clear_history,
             on_quit=self._quit,
         )
-        self.controls_panel.pack(fill=tk.X, pady=(0, 10))
+        self.settings_panel.pack(fill=tk.X, pady=(0, 8))
+        self.status_panel = StatusPanel(main_frame)
+        self.status_panel.pack(fill=tk.X, pady=(0, 8))
         self.cache_panel = CachePanel(main_frame)
-        self.cache_panel.pack(fill=tk.X, pady=(0, 10))
+        self.cache_panel.pack(fill=tk.X, pady=(0, 8))
         self.history_panel = HistoryPanel(main_frame)
         self.history_panel.pack(fill=tk.BOTH, expand=True)
 
@@ -105,7 +101,7 @@ class AppWindow:
             self.root.after(0, lambda: self._apply_running_state(is_running))
 
     def _apply_running_state(self, is_running: bool) -> None:
-        self.controls_panel.set_running(is_running)
+        self.settings_panel.set_running(is_running)
         if self.menubar:
             self.menubar.update_running(is_running)
 

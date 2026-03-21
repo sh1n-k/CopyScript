@@ -9,13 +9,13 @@ from copyscript.ui import theme
 
 class HistoryPanel(ttk.Frame):
     def __init__(self, parent):
-        super().__init__(parent, style="Root.TFrame")
-        ttk.Label(self, text="최근 처리 내역 (최신순)", style="Body.TLabel").pack(anchor=tk.W)
-        frame = ttk.Frame(self, style="Root.TFrame")
-        frame.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
+        super().__init__(parent, style="Card.TFrame", padding=12)
+        ttk.Label(self, text="최근 처리 내역", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 6))
+        frame = ttk.Frame(self, style="Card.TFrame")
+        frame.pack(fill=tk.BOTH, expand=True)
         self.listbox = tk.Listbox(
             frame,
-            height=12,
+            height=8,
             activestyle="none",
             bg=theme.CARD,
             fg=theme.TEXT,
