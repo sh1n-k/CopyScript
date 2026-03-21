@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import tkinter as tk
+import platform
 from tkinter import ttk
 
 from copyscript.config.languages import build_language_maps
 from copyscript.config.models import AppSettings
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 class SettingsPanel(ttk.Frame):
@@ -15,7 +18,8 @@ class SettingsPanel(ttk.Frame):
         settings: AppSettings,
         on_language_change,
         on_timestamp_change,
-        on_auto_start_change,
+        on_monitor_on_launch_change,
+        on_launch_at_login_change,
         on_cache_size_change,
         on_toggle,
         on_clear,
@@ -25,7 +29,8 @@ class SettingsPanel(ttk.Frame):
         self.labels, self.label_to_code, self.code_to_label = build_language_maps()
         self._on_language_change = on_language_change
         self._on_timestamp_change = on_timestamp_change
-        self._on_auto_start_change = on_auto_start_change
+        self._on_monitor_on_launch_change = on_monitor_on_launch_change
+        self._on_launch_at_login_change = on_launch_at_login_change
         self._on_cache_size_change = on_cache_size_change
 
         ttk.Label(self, text="사용자 설정 및 제어", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
@@ -58,17 +63,28 @@ class SettingsPanel(ttk.Frame):
         ).grid(row=1, column=1, sticky="w", pady=(0, 6))
 
         ttk.Label(form, text="시작 옵션", style="CardMuted.TLabel").grid(row=2, column=0, sticky="nw", pady=(0, 6))
-        self.auto_start_var = tk.BooleanVar(value=settings.auto_start)
+        self.monitor_on_launch_var = tk.BooleanVar(value=settings.monitor_on_launch)
         ttk.Checkbutton(
             form,
             text="앱 실행 시 모니터링 자동 시작",
-            variable=self.auto_start_var,
-            command=self._handle_auto_start,
+            variable=self.monitor_on_launch_var,
+            command=self._handle_monitor_on_launch,
         ).grid(row=2, column=1, sticky="w", pady=(0, 6))
 
-        ttk.Label(form, text="캐시 길이", style="CardMuted.TLabel").grid(row=3, column=0, sticky="w")
+        next_row = 3
+        self.launch_at_login_var = tk.BooleanVar(value=settings.launch_at_login)
+        if IS_WINDOWS:
+            ttk.Checkbutton(
+                form,
+                text="로그인 시 앱 자동 실행",
+                variable=self.launch_at_login_var,
+                command=self._handle_launch_at_login,
+            ).grid(row=3, column=1, sticky="w", pady=(0, 6))
+            next_row = 4
+
+        ttk.Label(form, text="캐시 길이", style="CardMuted.TLabel").grid(row=next_row, column=0, sticky="w")
         cache_frame = ttk.Frame(form, style="Card.TFrame")
-        cache_frame.grid(row=3, column=1, sticky="w")
+        cache_frame.grid(row=next_row, column=1, sticky="w")
         self.cache_size_var = tk.IntVar(value=settings.cache_max_items)
         self.cache_spin = ttk.Spinbox(
             cache_frame,
@@ -99,6 +115,9 @@ class SettingsPanel(ttk.Frame):
     def set_timestamp(self, include: bool) -> None:
         self.timestamp_var.set(include)
 
+    def set_launch_at_login(self, enabled: bool) -> None:
+        self.launch_at_login_var.set(enabled)
+
     def set_running(self, is_running: bool) -> None:
         self.toggle_button.config(text="⏹ 정지" if is_running else "▶ 시작")
 
@@ -118,8 +137,11 @@ class SettingsPanel(ttk.Frame):
     def _handle_timestamp(self) -> None:
         self._on_timestamp_change(bool(self.timestamp_var.get()))
 
-    def _handle_auto_start(self) -> None:
-        self._on_auto_start_change(bool(self.auto_start_var.get()))
+    def _handle_monitor_on_launch(self) -> None:
+        self._on_monitor_on_launch_change(bool(self.monitor_on_launch_var.get()))
+
+    def _handle_launch_at_login(self) -> None:
+        self._on_launch_at_login_change(bool(self.launch_at_login_var.get()))
 
     def _handle_cache_size(self, event=None) -> None:
         del event

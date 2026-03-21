@@ -9,6 +9,7 @@ from copyscript.core.clipboard_monitor import ClipboardMonitor
 from copyscript.core.subtitle_cache import SubtitleCache
 from copyscript.core.subtitle_fetcher import SubtitleFetcher
 from copyscript.platform.clipboard_watchers import ClipboardWatcher, create_watcher
+from copyscript.platform.launch_at_login import is_launch_at_login_enabled, set_launch_at_login, supports_launch_at_login
 from copyscript.platform.notifier import Notifier
 
 StatusHandler = Callable[[str, bool], None]
@@ -41,6 +42,7 @@ class AppController:
         self._on_history: HistoryHandler = lambda items: None
         self._on_cache: CacheHandler = lambda stats: None
         self._on_running: RunningHandler = lambda running: None
+        self._sync_launch_at_login_state()
 
     @property
     def processing_options(self) -> ProcessingOptions:
@@ -112,10 +114,18 @@ class AppController:
             state = f"{state} (다음 URL부터 적용)"
         self._apply_processing_settings_change(f"{state} / 캐시 초기화")
 
-    def update_auto_start(self, enabled: bool) -> None:
-        self.settings.auto_start = enabled
+    def update_monitor_on_launch(self, enabled: bool) -> None:
+        self.settings.monitor_on_launch = enabled
         self._save_settings()
-        self._handle_status_change("자동 시작: 켜짐" if enabled else "자동 시작: 꺼짐", False)
+        self._handle_status_change("앱 실행 시 모니터링 자동 시작: 켜짐" if enabled else "앱 실행 시 모니터링 자동 시작: 꺼짐", False)
+
+    def update_launch_at_login(self, enabled: bool) -> None:
+        if supports_launch_at_login() and not set_launch_at_login(enabled):
+            self._handle_status_change("로그인 시 앱 자동 실행 설정 변경에 실패했습니다", True)
+            return
+        self.settings.launch_at_login = enabled
+        self._save_settings()
+        self._handle_status_change("로그인 시 앱 자동 실행: 켜짐" if enabled else "로그인 시 앱 자동 실행: 꺼짐", False)
 
     def update_cache_size(self, value: int) -> None:
         self.settings.cache_max_items = max(1, int(value))
@@ -166,3 +176,9 @@ class AppController:
 
     def _save_settings(self) -> None:
         self.settings_store.save(self.settings)
+
+    def _sync_launch_at_login_state(self) -> None:
+        if not supports_launch_at_login():
+            return
+        self.settings.launch_at_login = is_launch_at_login_enabled()
+        self._save_settings()

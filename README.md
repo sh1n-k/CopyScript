@@ -23,8 +23,8 @@ uv run python main.py
 ```
 
 ## 사용 방법
-1. 앱을 실행하면 메뉴바에 `CC` 아이콘이 나타납니다.
-2. 설정 화면이 필요하면 메뉴바 `CC > 설정 열기`를 누릅니다.
+1. 앱을 실행하면 macOS에서는 메뉴바, Windows에서는 트레이에 `CC` 아이콘이 나타납니다.
+2. 설정 화면이 필요하면 해당 아이콘 메뉴에서 `설정 열기`를 누릅니다.
 3. 모니터링을 시작합니다.
 4. YouTube 영상 URL을 복사합니다.
 5. 잠시 후 자막이 클립보드로 교체됩니다.
@@ -32,10 +32,33 @@ uv run python main.py
 
 예시: 메모장에 링크를 복사했다가, 바로 `Cmd+V` 하면 자막 본문이 붙습니다.
 
-## 빌드 (선택)
+Windows에서는 실행 중 창을 닫아도 앱이 종료되지 않고 트레이로 숨겨집니다. 트레이 메뉴에서 설정 열기, 모니터링 시작/정지, 종료를 제어할 수 있습니다.
+
+## 빌드
+### macOS
 ```bash
 ./build.sh
 ```
+
+### Windows
+```powershell
+.\build.ps1
+```
+
+## 설치 / 제거
+### macOS
+```bash
+./install.sh
+./uninstall.sh
+```
+
+### Windows
+```powershell
+.\install.ps1
+.\uninstall.ps1
+```
+
+Windows 설치는 현재 사용자 기준으로 `%LOCALAPPDATA%\Programs\CopyScript`에 앱을 복사하고, 로그인 시 `--hidden` 모드로 자동 실행되도록 등록합니다.
 
 ## 개발 검증
 ```bash
