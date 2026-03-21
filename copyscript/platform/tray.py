@@ -80,15 +80,32 @@ class TrayController:
     def _build_language_menu(self) -> pystray.Menu:
         return pystray.Menu(
             *[
-                pystray.MenuItem(
-                    f"{name} ({code})",
-                    lambda icon, item, code=code: self._callbacks["on_language"](code),
-                    checked=lambda item, code=code: self._lang_code == code,
-                    radio=True,
-                )
+                self._build_language_item(name, code)
                 for name, code in SUPPORTED_LANGUAGES
             ]
         )
+
+    def _build_language_item(self, name: str, code: str) -> pystray.MenuItem:
+        return pystray.MenuItem(
+            f"{name} ({code})",
+            self._build_language_action(code),
+            checked=self._build_language_checked(code),
+            radio=True,
+        )
+
+    def _build_language_action(self, code: str):
+        def _action(icon, item) -> None:
+            del icon, item
+            self._callbacks["on_language"](code)
+
+        return _action
+
+    def _build_language_checked(self, code: str):
+        def _checked(item) -> bool:
+            del item
+            return self._lang_code == code
+
+        return _checked
 
     def _load_icon_image(self) -> Image.Image:
         icon_path = get_icon_path()

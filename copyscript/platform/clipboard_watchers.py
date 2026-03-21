@@ -19,6 +19,10 @@ class ClipboardWatcher:
         raise NotImplementedError
 
 
+def _get_wintype_attr(wintypes_module, name: str, fallback):
+    return getattr(wintypes_module, name, fallback)
+
+
 class WindowsClipboardWatcher(ClipboardWatcher):
     def __init__(self, on_change: Callable[[], None]):
         super().__init__(on_change)
@@ -84,6 +88,9 @@ class WindowsClipboardWatcher(ClipboardWatcher):
         hwnd_message = wintypes.HWND(-3)
 
         lresult_type: Any = getattr(wintypes, "LRESULT", ctypes.c_long)
+        hcursor_type = _get_wintype_attr(wintypes, "HCURSOR", wintypes.HANDLE)
+        hicon_type = _get_wintype_attr(wintypes, "HICON", wintypes.HANDLE)
+        hbrush_type = _get_wintype_attr(wintypes, "HBRUSH", wintypes.HANDLE)
         wndproc_type = getattr(ctypes, "WINFUNCTYPE")(
             lresult_type,
             wintypes.HWND,
@@ -91,6 +98,13 @@ class WindowsClipboardWatcher(ClipboardWatcher):
             wintypes.WPARAM,
             wintypes.LPARAM,
         )
+        user32.DefWindowProcW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.DefWindowProcW.restype = lresult_type
 
         def _wnd_proc(hwnd, msg, wparam, lparam):
             if msg == wm_clipboard_update:
@@ -113,9 +127,9 @@ class WindowsClipboardWatcher(ClipboardWatcher):
                 ("cbClsExtra", ctypes.c_int),
                 ("cbWndExtra", ctypes.c_int),
                 ("hInstance", wintypes.HINSTANCE),
-                ("hIcon", wintypes.HICON),
-                ("hCursor", wintypes.HCURSOR),
-                ("hbrBackground", wintypes.HBRUSH),
+                ("hIcon", hicon_type),
+                ("hCursor", hcursor_type),
+                ("hbrBackground", hbrush_type),
                 ("lpszMenuName", wintypes.LPCWSTR),
                 ("lpszClassName", wintypes.LPCWSTR),
             ]
