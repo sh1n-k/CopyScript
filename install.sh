@@ -9,6 +9,24 @@ DEST_APP="/Applications/$APP_NAME.app"
 EXEC_PATH="$DEST_APP/Contents/MacOS/$APP_NAME"
 PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 
+bootstrap_agent() {
+    local attempt
+
+    for attempt in 1 2 3; do
+        if launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"; then
+            return 0
+        fi
+
+        if [ "$attempt" -lt 3 ]; then
+            echo "LaunchAgent 등록 재시도 중... ($attempt/3)"
+            sleep 1
+        fi
+    done
+
+    echo "오류: LaunchAgent 등록에 실패했습니다."
+    return 1
+}
+
 # --- 빌드 확인 ---
 if [ ! -d "$SRC_APP" ]; then
     echo "오류: $SRC_APP 을 찾을 수 없습니다."
@@ -52,7 +70,7 @@ EOF
 launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
 
 # 등록
-launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
+bootstrap_agent
 
 echo ""
 echo "=== 설치 완료 ==="
