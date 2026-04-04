@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Callable
 
 from copyscript.app.settings_store import SettingsStore
@@ -16,6 +17,7 @@ StatusHandler = Callable[[str, bool], None]
 HistoryHandler = Callable[[list[HistoryEntry]], None]
 CacheHandler = Callable[[dict], None]
 RunningHandler = Callable[[bool], None]
+logger = logging.getLogger(__name__)
 
 
 class AppController:
@@ -75,12 +77,20 @@ class AppController:
 
     def handle_clipboard_change(self) -> None:
         if not self.is_running or self._closing:
+            logger.debug(
+                "Clipboard change ignored (is_running=%s, closing=%s)",
+                self.is_running,
+                self._closing,
+            )
             return
+        logger.debug("Clipboard change detected while running")
         self.monitor.check_and_process()
 
     def start_monitoring(self) -> None:
         if self.is_running:
+            logger.debug("start_monitoring ignored because monitoring is already running")
             return
+        logger.info("Starting monitoring")
         self.is_running = True
         self.monitor.reset()
         self._on_running(True)
@@ -89,7 +99,9 @@ class AppController:
 
     def stop_monitoring(self) -> None:
         if not self.is_running:
+            logger.debug("stop_monitoring ignored because monitoring is already stopped")
             return
+        logger.info("Stopping monitoring")
         self.is_running = False
         self.watcher.stop()
         self._on_running(False)
@@ -144,6 +156,7 @@ class AppController:
     def shutdown(self, window_geometry: str) -> None:
         if self._closing:
             return
+        logger.info("Shutting down application")
         self._closing = True
         self.settings.window_geometry = window_geometry
         self._save_settings()

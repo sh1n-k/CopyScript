@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
+from copyscript.app.logging_setup import setup_logging
 from copyscript.app.runtime_options import RuntimeOptions
 from copyscript.ui.window import AppWindow
 
@@ -15,6 +16,7 @@ def parse_runtime_options(argv: Sequence[str] | None = None) -> RuntimeOptions:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    setup_logging()
     AppWindow(runtime_options=parse_runtime_options(argv)).run()
 
 

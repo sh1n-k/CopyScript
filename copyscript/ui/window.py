@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import importlib
 import platform
+import queue
+import threading
 import tkinter as tk
 from tkinter import ttk
+from typing import Any
+from typing import Callable
 
 from copyscript.app.controller import AppController
 from copyscript.app.runtime_options import RuntimeOptions
@@ -27,12 +31,17 @@ class AppWindow:
         self.runtime_options = runtime_options or RuntimeOptions()
         self.controller = AppController()
         self.root = tk.Tk()
+        self._ui_thread_id = threading.get_ident()
+        self._ui_action_queue: queue.Queue[tuple[Callable[..., None], tuple[Any, ...]]] | None = None
         self.root.title("CopyScript")
         self.root.geometry(DEFAULT_GEOMETRY)
         self.root.resizable(False, False)
         self.root.configure(background="#f5f2ea")
         apply_theme(ttk.Style(self.root))
         self._configure_window_icon()
+        if IS_WINDOWS:
+            self._ui_action_queue = queue.Queue()
+            self.root.after(50, self._drain_ui_actions)
 
         saved_geometry = self.controller.settings.window_geometry
         if saved_geometry:
@@ -105,20 +114,16 @@ class AppWindow:
         self.controller.clear_history()
 
     def _queue_status(self, status: str, is_error: bool) -> None:
-        if self.root.winfo_exists():
-            self.root.after(0, lambda: self.status_panel.set_status(status, is_error))
+        self._run_on_ui_thread(self.status_panel.set_status, status, is_error)
 
     def _queue_history(self, items) -> None:
-        if self.root.winfo_exists():
-            self.root.after(0, lambda: self.history_panel.set_items(items))
+        self._run_on_ui_thread(self.history_panel.set_items, items)
 
     def _queue_cache(self, stats: dict) -> None:
-        if self.root.winfo_exists():
-            self.root.after(0, lambda: self.cache_panel.refresh(stats))
+        self._run_on_ui_thread(self.cache_panel.refresh, stats)
 
     def _queue_running(self, is_running: bool) -> None:
-        if self.root.winfo_exists():
-            self.root.after(0, lambda: self._apply_running_state(is_running))
+        self._run_on_ui_thread(self._apply_running_state, is_running)
 
     def _apply_running_state(self, is_running: bool) -> None:
         self.settings_panel.set_running(is_running)
@@ -218,9 +223,25 @@ class AppWindow:
     def run(self) -> None:
         self.root.mainloop()
 
+    def _drain_ui_actions(self) -> None:
+        if not self.root.winfo_exists():
+            return
+        if self._ui_action_queue is not None:
+            while True:
+                try:
+                    callback, args = self._ui_action_queue.get_nowait()
+                except queue.Empty:
+                    break
+                callback(*args)
+        self.root.after(50, self._drain_ui_actions)
+
     def _run_on_ui_thread(self, callback, *args) -> None:
+        if IS_WINDOWS and threading.get_ident() != self._ui_thread_id:
+            if self._ui_action_queue is not None:
+                self._ui_action_queue.put((callback, args))
+            return
         if self.root.winfo_exists():
-            self.root.after(0, lambda: callback(*args))
+            callback(*args)
 
     def _configure_window_icon(self) -> None:
         if not IS_WINDOWS:
