@@ -48,12 +48,25 @@ def setup_logging() -> Path:
     faulthandler.enable(file=_FAULT_LOG_STREAM, all_threads=True)
 
     def _log_unhandled_exception(exc_type, exc_value, exc_traceback) -> None:
+        if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
+            logging.getLogger("copyscript.crash").info(
+                "Process interrupted: %s",
+                exc_type.__name__,
+            )
+            return
         logging.getLogger("copyscript.crash").exception(
             "Unhandled exception",
             exc_info=(exc_type, exc_value, exc_traceback),
         )
 
     def _log_thread_exception(args) -> None:
+        if issubclass(args.exc_type, (KeyboardInterrupt, SystemExit)):
+            logging.getLogger("copyscript.crash").info(
+                "Thread interrupted: %s (%s)",
+                args.exc_type.__name__,
+                args.thread.name if args.thread else "unknown-thread",
+            )
+            return
         logging.getLogger("copyscript.crash").exception(
             "Unhandled thread exception in %s",
             args.thread.name if args.thread else "unknown-thread",

@@ -1,3 +1,5 @@
+"""Compatibility entry point; prefer editing copyscript.main."""
+
 from copyscript.main import main
 
 

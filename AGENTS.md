@@ -37,7 +37,10 @@
 - Use Python 3.10+ type hints.
 - Keep identifiers in English (`snake_case` for functions/variables, `PascalCase` for classes).
 - Keep UI strings and comments in Korean unless there is a strong reason not to.
-- GUI updates from watcher callbacks must stay thread-safe via `root.after(...)`.
+- GUI updates from watcher callbacks must stay thread-safe.
+- On Windows, tray/watcher callbacks must use `AppWindow._run_on_ui_thread(...)` and the internal UI queue instead of touching Tk directly.
+- On macOS, keep the existing menubar/Tk callback behavior unless there is a platform-specific reason to change it.
+- Root-level wrapper modules (`main.py`, `subtitle_fetcher.py` etc.) are compatibility entry points; prefer editing `copyscript/` modules directly.
 
 ## Safety / Security
 - Do not commit secrets, tokens, or personal machine paths.

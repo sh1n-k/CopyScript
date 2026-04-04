@@ -25,6 +25,8 @@
 
 ## Multi-file Rules
 - Settings changes must keep `ProcessingOptions`, cache invalidation, and processed-id reset in sync.
-- GUI updates from watcher callbacks must stay on `root.after(...)`.
+- GUI updates from watcher callbacks must stay thread-safe.
+- On Windows, tray/watcher callbacks must go through `AppWindow._run_on_ui_thread(...)` and the UI queue rather than touching Tk objects directly.
+- Root-level wrapper modules are compatibility shims; prefer editing `copyscript/` modules.
 - Preserve data-path compatibility for macOS: `~/Library/Application Support/YTSubtitleCopy`.
 - Large refactors should use a dedicated feature branch + worktree under `.worktrees/`.
