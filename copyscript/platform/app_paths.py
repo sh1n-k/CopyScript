@@ -9,13 +9,8 @@ from copyscript.config.constants import APP_DATA_DIR_NAME
 
 
 def get_data_dir() -> Path:
-    system = platform.system()
-    if system == "Windows":
-        appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-        base = Path(appdata) if appdata else Path.home() / "AppData" / "Local"
-        data_dir = base / APP_DATA_DIR_NAME
-    else:
-        data_dir = Path.home() / "Library" / "Application Support" / APP_DATA_DIR_NAME
+    base = _get_data_base_dir(platform.system())
+    data_dir = base / APP_DATA_DIR_NAME
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
@@ -48,3 +43,10 @@ def get_resource_dir() -> Path:
 
 def get_icon_path() -> Path:
     return get_resource_dir() / "CopyScript.ico"
+
+
+def _get_data_base_dir(system: str) -> Path:
+    if system == "Windows":
+        appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        return Path(appdata) if appdata else Path.home() / "AppData" / "Local"
+    return Path.home() / "Library" / "Application Support"

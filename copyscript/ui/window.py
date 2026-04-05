@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import platform
 import queue
 import threading
@@ -18,6 +19,7 @@ from copyscript.ui.theme import apply_theme
 
 IS_MACOS = platform.system() == "Darwin"
 IS_WINDOWS = platform.system() == "Windows"
+logger = logging.getLogger(__name__)
 
 
 def should_hide_on_start(system_name: str, start_hidden: bool) -> bool:
@@ -169,18 +171,24 @@ class AppWindow:
         )
 
     def _setup_tray(self) -> None:
-        from copyscript.platform.tray import TrayController
+        try:
+            from copyscript.platform.tray import TrayController
 
-        self.status_ui = TrayController(
-            on_toggle=lambda: self._run_on_ui_thread(self.controller.toggle_monitoring),
-            on_language=lambda code: self._run_on_ui_thread(self._tray_on_language, code),
-            on_timestamp=lambda: self._run_on_ui_thread(self._tray_on_timestamp),
-            on_show_settings=lambda: self._run_on_ui_thread(self._show_window),
-            on_quit=lambda: self._run_on_ui_thread(self._quit),
-            initial_lang=self.controller.settings.lang_code,
-            initial_timestamp=self.controller.settings.include_timestamp,
-            initial_running=self.controller.is_running,
-        )
+            self.status_ui = TrayController(
+                on_toggle=lambda: self._run_on_ui_thread(self.controller.toggle_monitoring),
+                on_language=lambda code: self._run_on_ui_thread(self._tray_on_language, code),
+                on_timestamp=lambda: self._run_on_ui_thread(self._tray_on_timestamp),
+                on_show_settings=lambda: self._run_on_ui_thread(self._show_window),
+                on_quit=lambda: self._run_on_ui_thread(self._quit),
+                initial_lang=self.controller.settings.lang_code,
+                initial_timestamp=self.controller.settings.include_timestamp,
+                initial_running=self.controller.is_running,
+            )
+        except Exception:
+            logger.exception("Failed to initialize Windows tray controller")
+            self.status_ui = None
+            if self._start_hidden:
+                self._show_window()
 
     def _menubar_on_language(self, code: str) -> None:
         self.settings_panel.set_language_code(code)

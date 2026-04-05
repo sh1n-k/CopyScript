@@ -7,7 +7,9 @@ $sourceDir = Join-Path $projectRoot "dist\\CopyScript"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\\CopyScript"
 $exePath = Join-Path $installDir "CopyScript.exe"
 $runKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$dataDir = Join-Path $env:LOCALAPPDATA "YTSubtitleCopy"
+$startupDir = Join-Path $env:APPDATA "Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+$startupScriptPath = Join-Path $startupDir "CopyScript Startup.vbs"
+$dataDir = Join-Path $env:LOCALAPPDATA "CopyScript"
 
 if (-not (Test-Path $sourceDir)) {
     throw "빌드 결과를 찾을 수 없습니다. 먼저 .\\build.ps1 를 실행하세요."
@@ -32,13 +34,23 @@ New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Copy-Item -Recurse -Force (Join-Path $sourceDir "*") $installDir
 
 Write-Host "로그인 시 자동 실행을 등록합니다..."
-New-Item -Path $runKeyPath -Force | Out-Null
-Set-ItemProperty -Path $runKeyPath -Name $appName -Value "`"$exePath`" --hidden"
+New-Item -ItemType Directory -Force -Path $startupDir | Out-Null
+$launchCommand = "`"$exePath`" --hidden"
+$escapedLaunchCommand = $launchCommand.Replace('"', '""')
+$startupScript = @"
+Set shell = CreateObject("WScript.Shell")
+WScript.Sleep 15000
+shell.Run "$escapedLaunchCommand", 0, False
+"@
+Set-Content -LiteralPath $startupScriptPath -Value $startupScript -Encoding Unicode
+if (Get-ItemProperty -Path $runKeyPath -Name $appName -ErrorAction SilentlyContinue) {
+    Remove-ItemProperty -Path $runKeyPath -Name $appName
+}
 
 Write-Host ""
 Write-Host "=== 설치 완료 ==="
 Write-Host "  앱 위치: $exePath"
-Write-Host "  자동실행: 로그인 시 트레이로 자동 시작됩니다"
+Write-Host "  자동실행: 로그인 후 잠시 뒤 트레이로 자동 시작됩니다"
 Write-Host "  설정 데이터: $dataDir"
 Write-Host ""
 Write-Host "  제거하려면: .\\uninstall.ps1"

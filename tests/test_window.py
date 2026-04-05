@@ -1,4 +1,5 @@
 import queue
+import types
 import unittest
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -56,3 +57,33 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         callback, args = window._ui_action_queue.get_nowait()
         callback(*args)
         window.status_panel.set_status.assert_called_once_with("running", False)
+
+    def test_setup_tray_shows_window_when_hidden_start_fails(self):
+        window = AppWindow.__new__(AppWindow)
+        window.root = MagicMock()
+        window._start_hidden = True
+        window.controller = types.SimpleNamespace(
+            toggle_monitoring=MagicMock(),
+            settings=types.SimpleNamespace(lang_code="ko", include_timestamp=False),
+            is_running=False,
+        )
+        window._run_on_ui_thread = MagicMock()
+        window._tray_on_language = MagicMock()
+        window._tray_on_timestamp = MagicMock()
+        window._show_window = MagicMock()
+        window._quit = MagicMock()
+        window.status_ui = None
+
+        fake_tray_module = types.SimpleNamespace()
+
+        def raise_tray_error(*args, **kwargs):
+            del args, kwargs
+            raise RuntimeError("tray failed")
+
+        fake_tray_module.TrayController = raise_tray_error
+
+        with patch.dict("sys.modules", {"copyscript.platform.tray": fake_tray_module}):
+            window._setup_tray()
+
+        self.assertIsNone(window.status_ui)
+        window._show_window.assert_called_once_with()

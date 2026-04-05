@@ -46,4 +46,4 @@
 - Do not commit secrets, tokens, or personal machine paths.
 - Avoid destructive commands unless explicitly requested.
 - Before running commands with destructive effects (for example `rm -rf` in install/uninstall scripts), confirm scope and intent.
-- Preserve existing user data path compatibility unless migration is explicitly requested (`~/Library/Application Support/YTSubtitleCopy`).
+- Preserve existing user data path compatibility unless migration is explicitly requested (`~/Library/Application Support/CopyScript`).

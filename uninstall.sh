@@ -5,7 +5,7 @@ APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
 DEST_APP="/Applications/$APP_NAME.app"
 PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
-DATA_DIR="$HOME/Library/Application Support/YTSubtitleCopy"
+DATA_DIR="$HOME/Library/Application Support/CopyScript"
 
 echo "=== $APP_NAME 제거 ==="
 

@@ -8,14 +8,14 @@ from copyscript.platform import app_paths
 
 
 class AppPathsTest(unittest.TestCase):
-    def test_macos_path_keeps_existing_location(self):
+    def test_macos_path_uses_app_name_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             with patch("copyscript.platform.app_paths.platform.system", return_value="Darwin"):
                 with patch("pathlib.Path.home", return_value=home):
                     path = app_paths.get_data_dir()
 
-            self.assertEqual(path, home / "Library" / "Application Support" / "YTSubtitleCopy")
+            self.assertEqual(path, home / "Library" / "Application Support" / "CopyScript")
 
     def test_windows_path_uses_localappdata(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -24,4 +24,4 @@ class AppPathsTest(unittest.TestCase):
                 with patch.dict(os.environ, {"LOCALAPPDATA": str(base)}, clear=False):
                     path = app_paths.get_data_dir()
 
-            self.assertEqual(path, base / "YTSubtitleCopy")
+            self.assertEqual(path, base / "CopyScript")

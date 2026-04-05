@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import logging
+import os
 import platform
 import sys
 from pathlib import Path
 
-from copyscript.config.constants import WINDOWS_RUN_KEY_PATH, WINDOWS_RUN_VALUE_NAME
+from copyscript.config.constants import (
+    WINDOWS_RUN_KEY_PATH,
+    WINDOWS_RUN_VALUE_NAME,
+    WINDOWS_STARTUP_DELAY_MS,
+    WINDOWS_STARTUP_SCRIPT_NAME,
+    WINDOWS_STARTUP_SUBDIR,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def supports_launch_at_login() -> bool:
@@ -22,10 +32,65 @@ def build_launch_command(executable_path: str | None = None) -> str:
     return f'"{Path(sys.executable).resolve()}" "{script_path}" --hidden'
 
 
+def get_startup_script_path() -> Path:
+    appdata = os.environ.get("APPDATA")
+    base_dir = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+    return base_dir / WINDOWS_STARTUP_SUBDIR / WINDOWS_STARTUP_SCRIPT_NAME
+
+
+def build_startup_script(command: str, delay_ms: int = WINDOWS_STARTUP_DELAY_MS) -> str:
+    escaped_command = command.replace('"', '""')
+    return "\r\n".join(
+        [
+            'Set shell = CreateObject("WScript.Shell")',
+            f"WScript.Sleep {max(0, int(delay_ms))}",
+            f'shell.Run "{escaped_command}", 0, False',
+            "",
+        ]
+    )
+
+
 def is_launch_at_login_enabled() -> bool:
     if not supports_launch_at_login():
         return False
 
+    if get_startup_script_path().exists():
+        return True
+
+    return _has_legacy_run_key_value()
+
+
+def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bool:
+    if not supports_launch_at_login():
+        return False
+
+    startup_script_path = get_startup_script_path()
+    import winreg
+
+    try:
+        if enabled:
+            startup_script_path.parent.mkdir(parents=True, exist_ok=True)
+            startup_script_path.write_text(
+                build_startup_script(build_launch_command(executable_path)),
+                encoding="utf-16",
+            )
+        else:
+            startup_script_path.unlink(missing_ok=True)
+        _delete_legacy_run_key_value(winreg)
+        return True
+    except OSError:
+        logger.exception("Failed to update launch-at-login state")
+        return False
+    except Exception:
+        logger.exception("Unexpected failure while updating launch-at-login state")
+        return False
+
+
+def _default_script_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "main.py"
+
+
+def _has_legacy_run_key_value() -> bool:
     import winreg
 
     try:
@@ -38,25 +103,12 @@ def is_launch_at_login_enabled() -> bool:
         return False
 
 
-def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bool:
-    if not supports_launch_at_login():
-        return False
-
-    import winreg
-
+def _delete_legacy_run_key_value(winreg_module) -> None:
     try:
-        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH) as key:
-            if enabled:
-                winreg.SetValueEx(key, WINDOWS_RUN_VALUE_NAME, 0, winreg.REG_SZ, build_launch_command(executable_path))
-            else:
-                try:
-                    winreg.DeleteValue(key, WINDOWS_RUN_VALUE_NAME)
-                except FileNotFoundError:
-                    pass
-        return True
+        with winreg_module.CreateKey(winreg_module.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH) as key:
+            try:
+                winreg_module.DeleteValue(key, WINDOWS_RUN_VALUE_NAME)
+            except FileNotFoundError:
+                pass
     except OSError:
-        return False
-
-
-def _default_script_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "main.py"
+        logger.warning("Failed to remove legacy Run key entry", exc_info=True)

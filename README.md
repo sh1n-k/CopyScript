@@ -58,7 +58,7 @@ Windows에서는 실행 중 창을 닫아도 앱이 종료되지 않고 트레�
 .\uninstall.ps1
 ```
 
-Windows 설치는 현재 사용자 기준으로 `%LOCALAPPDATA%\Programs\CopyScript`에 앱을 복사하고, 로그인 시 `--hidden` 모드로 자동 실행되도록 등록합니다.
+Windows 설치는 현재 사용자 기준으로 `%LOCALAPPDATA%\Programs\CopyScript`에 앱을 복사하고, 로그인 후 짧은 지연 뒤 `--hidden` 모드로 자동 실행되도록 Startup 스크립트를 등록합니다. 이 지연은 재부팅 직후 Explorer/트레이 초기화 타이밍 때문에 아이콘이 누락되는 문제를 줄이기 위한 것입니다.
 
 ## 개발 검증
 ```bash

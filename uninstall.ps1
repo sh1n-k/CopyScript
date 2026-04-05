@@ -4,7 +4,9 @@ $ErrorActionPreference = "Stop"
 $appName = "CopyScript"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\\CopyScript"
 $runKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$dataDir = Join-Path $env:LOCALAPPDATA "YTSubtitleCopy"
+$startupDir = Join-Path $env:APPDATA "Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+$startupScriptPath = Join-Path $startupDir "CopyScript Startup.vbs"
+$dataDir = Join-Path $env:LOCALAPPDATA "CopyScript"
 
 Write-Host "=== $appName 제거 ==="
 
@@ -15,8 +17,13 @@ if ($running) {
     Start-Sleep -Seconds 1
 }
 
+if (Test-Path $startupScriptPath) {
+    Write-Host "자동실행 스크립트를 제거합니다..."
+    Remove-Item -Force $startupScriptPath
+}
+
 if (Get-ItemProperty -Path $runKeyPath -Name $appName -ErrorAction SilentlyContinue) {
-    Write-Host "자동실행 등록을 해제합니다..."
+    Write-Host "레거시 자동실행 등록을 해제합니다..."
     Remove-ItemProperty -Path $runKeyPath -Name $appName
 }
 
