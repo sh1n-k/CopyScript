@@ -18,6 +18,15 @@ def _cache_key(video_id: str, lang_code: str, include_timestamp: bool) -> str:
     return f"{video_id}|{lang_code}|{1 if include_timestamp else 0}"
 
 
+def _count_from_dict(data: dict, key: str, default: int) -> int:
+    if key not in data:
+        return default
+    try:
+        return max(0, int(data[key]))
+    except Exception:
+        return default
+
+
 @dataclass
 class CacheEntry:
     key: str
@@ -26,6 +35,8 @@ class CacheEntry:
     include_timestamp: bool
     file_name: str
     line_count: int
+    char_count: int
+    byte_count: int
     updated_at: str
 
     def to_dict(self) -> dict:
@@ -36,6 +47,8 @@ class CacheEntry:
             "include_timestamp": self.include_timestamp,
             "file_name": self.file_name,
             "line_count": self.line_count,
+            "char_count": self.char_count,
+            "byte_count": self.byte_count,
             "updated_at": self.updated_at,
         }
 
@@ -55,6 +68,8 @@ class CacheEntry:
                 include_timestamp=bool(data.get("include_timestamp", False)),
                 file_name=file_name,
                 line_count=max(0, int(data.get("line_count", 0))),
+                char_count=_count_from_dict(data, "char_count", -1),
+                byte_count=_count_from_dict(data, "byte_count", -1),
                 updated_at=str(data.get("updated_at", "")),
             )
         except Exception:
@@ -95,6 +110,8 @@ class SubtitleCache:
                     continue
                 self._entries[entry.key] = entry
             self._evict_if_needed(save=False)
+            if self._hydrate_missing_metadata():
+                self._save()
         except Exception:
             self._entries.clear()
 
@@ -124,6 +141,29 @@ class SubtitleCache:
         digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
         return f"{digest}.txt"
 
+    def _hydrate_missing_metadata(self) -> bool:
+        changed = False
+        for entry in self._entries.values():
+            if entry.char_count >= 0 and entry.byte_count >= 0:
+                continue
+            path = self.items_dir / entry.file_name
+            if not path.exists():
+                entry.char_count = max(0, entry.char_count)
+                entry.byte_count = max(0, entry.byte_count)
+                changed = True
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+                entry.line_count = text.count("\n") + 1 if text else 0
+                entry.char_count = len(text)
+                entry.byte_count = path.stat().st_size
+                changed = True
+            except Exception:
+                entry.char_count = max(0, entry.char_count)
+                entry.byte_count = max(0, entry.byte_count)
+                changed = True
+        return changed
+
     def get(self, video_id: str, lang_code: str, include_timestamp: bool) -> str | None:
         key = _cache_key(video_id, lang_code, include_timestamp)
         entry = self._entries.get(key)
@@ -147,6 +187,7 @@ class SubtitleCache:
         key = _cache_key(video_id, lang_code, include_timestamp)
         path = self.items_dir / self._entry_file_name(key)
         path.write_text(text, encoding="utf-8")
+        byte_count = path.stat().st_size
         entry = CacheEntry(
             key=key,
             video_id=video_id,
@@ -154,6 +195,8 @@ class SubtitleCache:
             include_timestamp=include_timestamp,
             file_name=path.name,
             line_count=text.count("\n") + 1 if text else 0,
+            char_count=len(text),
+            byte_count=byte_count,
             updated_at=_utc_now_iso(),
         )
         self._entries[key] = entry
@@ -180,15 +223,9 @@ class SubtitleCache:
         total_bytes = 0
         entries_recent = []
         for entry in self._entries.values():
-            path = self.items_dir / entry.file_name
-            if path.exists():
-                try:
-                    content = path.read_text(encoding="utf-8")
-                    total_chars += len(content)
-                    total_lines += content.count("\n") + 1 if content else 0
-                    total_bytes += path.stat().st_size
-                except Exception:
-                    continue
+            total_chars += entry.char_count
+            total_lines += entry.line_count
+            total_bytes += entry.byte_count
             entries_recent.append(
                 {
                     "video_id": entry.video_id,
