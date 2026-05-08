@@ -45,10 +45,10 @@ rm -rf build dist
 echo "=== .app 번들 빌드 ==="
 if [ -f "$SPEC_FILE" ]; then
   echo ".spec 파일 사용: $SPEC_FILE"
-  uv run pyinstaller --noconfirm --clean "$SPEC_FILE"
+  uv run python -m PyInstaller --noconfirm --clean "$SPEC_FILE"
 else
   echo ".spec 파일 없음 — 기본 옵션으로 빌드"
-  uv run pyinstaller \
+  uv run python -m PyInstaller \
     --windowed \
     --onedir \
     --name "$APP_NAME" \

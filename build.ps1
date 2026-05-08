@@ -18,7 +18,7 @@ Write-Host "=== 이전 빌드 정리 ==="
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 
 Write-Host "=== Windows 앱 빌드 ==="
-uv run pyinstaller --noconfirm --clean CopyScript.spec
+uv run python -m PyInstaller --noconfirm --clean CopyScript.spec
 
 Write-Host ""
 Write-Host "빌드 완료: dist\\CopyScript\\CopyScript.exe"
