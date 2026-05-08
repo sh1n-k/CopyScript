@@ -47,9 +47,13 @@ if (Get-ItemProperty -Path $runKeyPath -Name $appName -ErrorAction SilentlyConti
     Remove-ItemProperty -Path $runKeyPath -Name $appName
 }
 
+Write-Host "앱을 실행합니다..."
+Start-Process -FilePath $exePath -ArgumentList "--hidden" -WindowStyle Hidden
+
 Write-Host ""
 Write-Host "=== 설치 완료 ==="
 Write-Host "  앱 위치: $exePath"
+Write-Host "  앱 실행: 즉시 트레이로 시작했습니다"
 Write-Host "  자동실행: 로그인 후 잠시 뒤 트레이로 자동 시작됩니다"
 Write-Host "  설정 데이터: $dataDir"
 Write-Host ""

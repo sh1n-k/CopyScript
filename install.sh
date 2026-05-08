@@ -72,9 +72,13 @@ launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
 # 등록
 bootstrap_agent
 
+echo "앱을 실행합니다..."
+launchctl kickstart -k "gui/$(id -u)/$BUNDLE_ID"
+
 echo ""
 echo "=== 설치 완료 ==="
 echo "  앱 위치: $DEST_APP"
+echo "  앱 실행: 즉시 메뉴바로 시작했습니다"
 echo "  자동실행: 로그인 시 자동 시작됩니다"
 echo "  설정 화면: 메뉴바 CC > 설정 열기"
 echo ""
