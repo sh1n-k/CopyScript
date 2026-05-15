@@ -58,6 +58,23 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         callback(*args)
         window.status_panel.set_status.assert_called_once_with("running", False)
 
+    def test_run_on_ui_thread_queues_linux_tray_callbacks_from_background_thread(self):
+        window = AppWindow.__new__(AppWindow)
+        window.root = MagicMock()
+        window._ui_thread_id = 100
+        window._ui_action_queue = queue.Queue()
+        received = []
+
+        with patch("copyscript.ui.window.HAS_TRAY", True), patch(
+            "copyscript.ui.window.threading.get_ident", return_value=200
+        ):
+            window._run_on_ui_thread(lambda value: received.append(value), "queued")
+
+        window.root.winfo_exists.assert_not_called()
+        callback, args = window._ui_action_queue.get_nowait()
+        callback(*args)
+        self.assertEqual(received, ["queued"])
+
     def test_setup_tray_shows_window_when_hidden_start_fails(self):
         window = AppWindow.__new__(AppWindow)
         window.root = MagicMock()

@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Callable
 
+import pyperclip
+
 logger = logging.getLogger(__name__)
 
 
@@ -140,10 +142,65 @@ class MacClipboardWatcher(ClipboardWatcher):
                 pass
 
 
+class LinuxClipboardWatcher(ClipboardWatcher):
+    def __init__(self, on_change: Callable[[], None], interval_sec: float = 0.5):
+        super().__init__(on_change)
+        self._interval = max(0.1, float(interval_sec))
+        self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._last_signal_ts = 0.0
+        self._last_value: str | None = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._last_value = self._read_clipboard()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="clipboard-polling",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+
+    def _read_clipboard(self) -> str | None:
+        try:
+            value = pyperclip.paste()
+        except Exception:
+            return None
+        return value if isinstance(value, str) else None
+
+    def _run(self) -> None:
+        logger.debug("Linux clipboard polling loop started")
+        while not self._stop_event.is_set():
+            time.sleep(self._interval)
+            current = self._read_clipboard()
+            if current is None or current == self._last_value:
+                continue
+            self._last_value = current
+            now = time.monotonic()
+            if now - self._last_signal_ts < 0.05:
+                continue
+            self._last_signal_ts = now
+            try:
+                self._on_change()
+            except Exception:
+                logger.exception("Unhandled error in clipboard change callback")
+        logger.debug("Linux clipboard polling loop exited")
+
+
 def create_watcher(on_change: Callable[[], None]) -> ClipboardWatcher:
     system = platform.system()
     if system == "Windows":
         return WindowsClipboardWatcher(on_change)
     if system == "Darwin":
         return MacClipboardWatcher(on_change)
-    raise RuntimeError("This app supports Windows/macOS only.")
+    if system == "Linux":
+        return LinuxClipboardWatcher(on_change)
+    raise RuntimeError("This app supports Windows/macOS/Linux only.")

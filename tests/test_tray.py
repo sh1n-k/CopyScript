@@ -2,13 +2,13 @@ import platform
 import unittest
 from unittest.mock import MagicMock, patch
 
-if platform.system() == "Windows":
+if platform.system() in {"Windows", "Linux"}:
     from copyscript.platform.tray import TrayController
 else:
     TrayController = None
 
 
-@unittest.skipUnless(platform.system() == "Windows", "tray module is Windows-only")
+@unittest.skipUnless(platform.system() in {"Windows", "Linux"}, "tray module requires Windows or Linux")
 class TrayControllerTest(unittest.TestCase):
     @patch("copyscript.platform.tray.pystray.Icon")
     @patch.object(TrayController, "_load_icon_image", return_value=object())

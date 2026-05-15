@@ -4,6 +4,7 @@ import types
 import unittest
 
 from copyscript.platform.clipboard_watchers import _get_wintype_attr
+from copyscript.platform.clipboard_watchers import LinuxClipboardWatcher
 from copyscript.platform.clipboard_watchers import WindowsClipboardWatcher
 
 
@@ -41,5 +42,23 @@ class ClipboardWatchersTest(unittest.TestCase):
         try:
             watcher.start()
             self.assertFalse(triggered.wait(0.2))
+        finally:
+            watcher.stop()
+
+    def test_linux_watcher_triggers_callback_when_clipboard_changes(self):
+        triggered = threading.Event()
+        watcher = LinuxClipboardWatcher(triggered.set, interval_sec=0.05)
+        clipboard_values = iter(["one", "one", "two", "two"])
+
+        def _next_clipboard():
+            try:
+                return next(clipboard_values)
+            except StopIteration:
+                return "two"
+
+        watcher._read_clipboard = _next_clipboard  # type: ignore[method-assign]
+        try:
+            watcher.start()
+            self.assertTrue(triggered.wait(0.4))
         finally:
             watcher.stop()

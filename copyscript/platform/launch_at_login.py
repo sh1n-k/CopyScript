@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 from copyscript.config.constants import (
+    APP_NAME,
+    LINUX_AUTOSTART_FILENAME,
     WINDOWS_RUN_KEY_PATH,
     WINDOWS_RUN_VALUE_NAME,
     WINDOWS_STARTUP_DELAY_MS,
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def supports_launch_at_login() -> bool:
-    return platform.system() == "Windows"
+    return platform.system() in {"Windows", "Linux"}
 
 
 def build_launch_command(executable_path: str | None = None) -> str:
@@ -53,6 +55,8 @@ def build_startup_script(command: str, delay_ms: int = WINDOWS_STARTUP_DELAY_MS)
 def is_launch_at_login_enabled() -> bool:
     if not supports_launch_at_login():
         return False
+    if platform.system() == "Linux":
+        return get_linux_autostart_path().exists()
 
     if get_startup_script_path().exists():
         return True
@@ -63,6 +67,8 @@ def is_launch_at_login_enabled() -> bool:
 def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bool:
     if not supports_launch_at_login():
         return False
+    if platform.system() == "Linux":
+        return _set_linux_launch_at_login(enabled, executable_path)
 
     startup_script_path = get_startup_script_path()
     import winreg
@@ -88,6 +94,43 @@ def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bo
 
 def _default_script_path() -> Path:
     return Path(__file__).resolve().parents[2] / "main.py"
+
+
+def get_linux_autostart_path() -> Path:
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    base_dir = Path(config_home) if config_home else Path.home() / ".config"
+    return base_dir / "autostart" / LINUX_AUTOSTART_FILENAME
+
+
+def build_linux_desktop_entry(command: str) -> str:
+    return "\n".join(
+        [
+            "[Desktop Entry]",
+            "Type=Application",
+            f"Name={APP_NAME}",
+            f"Exec={command}",
+            "Terminal=false",
+            "X-GNOME-Autostart-enabled=true",
+            "",
+        ]
+    )
+
+
+def _set_linux_launch_at_login(enabled: bool, executable_path: str | None = None) -> bool:
+    autostart_path = get_linux_autostart_path()
+    try:
+        if enabled:
+            autostart_path.parent.mkdir(parents=True, exist_ok=True)
+            autostart_path.write_text(
+                build_linux_desktop_entry(build_launch_command(executable_path)),
+                encoding="utf-8",
+            )
+        else:
+            autostart_path.unlink(missing_ok=True)
+        return True
+    except OSError:
+        logger.exception("Failed to update Linux autostart state")
+        return False
 
 
 def _has_legacy_run_key_value() -> bool:

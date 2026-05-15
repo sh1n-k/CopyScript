@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import tkinter as tk
-import platform
 from tkinter import ttk
 
 from copyscript.config.languages import build_language_maps
 from copyscript.config.models import AppSettings
-
-IS_WINDOWS = platform.system() == "Windows"
-
+from copyscript.platform.launch_at_login import supports_launch_at_login
 
 class SettingsPanel(ttk.Frame):
     def __init__(
@@ -73,7 +70,7 @@ class SettingsPanel(ttk.Frame):
 
         next_row = 3
         self.launch_at_login_var = tk.BooleanVar(value=settings.launch_at_login)
-        if IS_WINDOWS:
+        if supports_launch_at_login():
             ttk.Checkbutton(
                 form,
                 text="로그인 시 앱 자동 실행",

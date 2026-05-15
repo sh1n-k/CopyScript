@@ -49,4 +49,7 @@ def _get_data_base_dir(system: str) -> Path:
     if system == "Windows":
         appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         return Path(appdata) if appdata else Path.home() / "AppData" / "Local"
+    if system == "Linux":
+        data_home = os.environ.get("XDG_DATA_HOME")
+        return Path(data_home) if data_home else Path.home() / ".local" / "share"
     return Path.home() / "Library" / "Application Support"

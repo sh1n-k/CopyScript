@@ -25,3 +25,12 @@ class AppPathsTest(unittest.TestCase):
                     path = app_paths.get_data_dir()
 
             self.assertEqual(path, base / "CopyScript")
+
+    def test_linux_path_uses_xdg_data_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            with patch("copyscript.platform.app_paths.platform.system", return_value="Linux"):
+                with patch.dict(os.environ, {"XDG_DATA_HOME": str(base)}, clear=False):
+                    path = app_paths.get_data_dir()
+
+            self.assertEqual(path, base / "CopyScript")

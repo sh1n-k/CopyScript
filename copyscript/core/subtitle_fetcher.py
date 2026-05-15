@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from copyscript.config.constants import DEFAULT_LANG_CODE
 from copyscript.config.models import ProcessingOptions
 
 try:
@@ -22,7 +23,7 @@ def format_timestamp(seconds: float) -> str:
 
 
 class SubtitleFetcher:
-    def __init__(self, preferred_lang: str = "ko", include_timestamp: bool = False, api: Any = None):
+    def __init__(self, preferred_lang: str = DEFAULT_LANG_CODE, include_timestamp: bool = False, api: Any = None):
         self.preferred_lang = preferred_lang
         self.include_timestamp = include_timestamp
         if api is not None:
