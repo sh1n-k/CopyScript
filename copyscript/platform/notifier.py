@@ -18,6 +18,9 @@ class Notifier:
             return
         if system == "Darwin":
             self._notify_macos(title, message)
+            return
+        if system == "Linux":
+            self._notify_linux(title, message)
 
     def _notify_windows(self, title: str, message: str) -> None:
         try:
@@ -36,6 +39,17 @@ class Notifier:
         try:
             subprocess.run(
                 ["osascript", "-e", script],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except Exception:
+            return
+
+    def _notify_linux(self, title: str, message: str) -> None:
+        try:
+            subprocess.run(
+                ["notify-send", title, message],
                 check=False,
                 capture_output=True,
                 text=True,

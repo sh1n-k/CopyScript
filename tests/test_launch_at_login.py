@@ -88,3 +88,38 @@ class LaunchAtLoginTest(unittest.TestCase):
                 return_value=startup_script_path,
             ):
                 self.assertTrue(launch_at_login.is_launch_at_login_enabled())
+
+    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Linux")
+    def test_set_launch_at_login_creates_linux_desktop_entry(self, _system):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            autostart_path = Path(temp_dir) / "CopyScript.desktop"
+            with patch(
+                "copyscript.platform.launch_at_login.get_linux_autostart_path",
+                return_value=autostart_path,
+            ):
+                result = launch_at_login.set_launch_at_login(
+                    True,
+                    executable_path="/home/me/.local/share/CopyScript/CopyScript",
+                )
+                enabled = launch_at_login.is_launch_at_login_enabled()
+
+            content = autostart_path.read_text(encoding="utf-8")
+
+        self.assertTrue(result)
+        self.assertTrue(enabled)
+        self.assertIn("Type=Application", content)
+        self.assertIn('Exec="/home/me/.local/share/CopyScript/CopyScript" --hidden', content)
+
+    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Linux")
+    def test_disable_launch_at_login_deletes_linux_desktop_entry(self, _system):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            autostart_path = Path(temp_dir) / "CopyScript.desktop"
+            autostart_path.write_text("test", encoding="utf-8")
+            with patch(
+                "copyscript.platform.launch_at_login.get_linux_autostart_path",
+                return_value=autostart_path,
+            ):
+                result = launch_at_login.set_launch_at_login(False)
+
+        self.assertTrue(result)
+        self.assertFalse(autostart_path.exists())

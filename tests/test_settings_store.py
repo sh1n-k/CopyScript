@@ -7,6 +7,15 @@ from copyscript.config.models import AppSettings, HistoryEntry
 
 
 class SettingsStoreTest(unittest.TestCase):
+    def test_missing_settings_uses_video_default_language(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            store.settings_path = Path(tmp) / "settings.json"
+
+            loaded = store.load()
+
+            self.assertEqual(loaded.lang_code, "video-default")
+
     def test_round_trip_preserves_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = SettingsStore()

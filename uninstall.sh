@@ -1,27 +1,44 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 set -euo pipefail
 
 APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
-DEST_APP="/Applications/$APP_NAME.app"
-PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
-DATA_DIR="$HOME/Library/Application Support/CopyScript"
+SYSTEM_NAME="$(uname -s)"
+
+if [ "$SYSTEM_NAME" = "Darwin" ]; then
+    DEST_APP="/Applications/$APP_NAME.app"
+    RUNNING_EXEC_PATH="$DEST_APP/Contents/MacOS/$APP_NAME"
+    AUTOSTART_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
+    DATA_DIR="$HOME/Library/Application Support/CopyScript"
+else
+    DEST_APP="$HOME/.local/lib/$APP_NAME"
+    RUNNING_EXEC_PATH="$DEST_APP/$APP_NAME"
+    AUTOSTART_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP_NAME.desktop"
+    DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/CopyScript"
+fi
 
 echo "=== $APP_NAME 제거 ==="
 
 # --- 실행 중인 앱 종료 ---
-if pgrep -f "$APP_NAME" > /dev/null 2>&1; then
+running_pids="$(ps -eo pid=,args= | awk -v exe="$RUNNING_EXEC_PATH" '$2 == exe {print $1}')"
+if [ -n "$running_pids" ]; then
     echo "실행 중인 앱을 종료합니다..."
-    pkill -f "$APP_NAME" 2>/dev/null || true
+    while IFS= read -r pid; do
+        kill "$pid" 2>/dev/null || true
+    done << EOF
+$running_pids
+EOF
     sleep 1
 fi
 
-# --- LaunchAgent 해제 ---
-if [ -f "$PLIST_PATH" ]; then
+# --- 자동실행 해제 ---
+if [ -f "$AUTOSTART_PATH" ]; then
     echo "자동실행 등록을 해제합니다..."
-    launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
-    rm -f "$PLIST_PATH"
-    echo "  LaunchAgent 제거 완료"
+    if [ "$SYSTEM_NAME" = "Darwin" ]; then
+        launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
+    fi
+    rm -f "$AUTOSTART_PATH"
+    echo "  자동실행 등록 제거 완료"
 fi
 
 # --- 앱 삭제 ---

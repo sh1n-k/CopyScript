@@ -1,16 +1,36 @@
 from __future__ import annotations
 
+import logging
+import os
 import platform
+import sys
+import sysconfig
+from importlib.util import find_spec
 from typing import Callable
 
 from copyscript.config.languages import SUPPORTED_LANGUAGES
 from copyscript.platform.app_paths import get_icon_path
 
-if platform.system() != "Windows":
-    raise ImportError("tray module is Windows-only")
+if platform.system() not in {"Windows", "Linux"}:
+    raise ImportError("tray module is available on Windows and Linux only")
+
+if platform.system() == "Linux":
+    system_dist_packages = f"/usr/lib/python{sys.version_info.major}/dist-packages"
+    versioned_dist_packages = sysconfig.get_path(
+        "platlib",
+        vars={"base": "/usr", "platbase": "/usr"},
+    )
+    for path in (system_dist_packages, versioned_dist_packages):
+        if path and path not in sys.path:
+            sys.path.append(path)
+
+    if find_spec("gi") is not None:
+        os.environ.setdefault("PYSTRAY_BACKEND", "gtk")
 
 from PIL import Image, ImageDraw
 import pystray
+
+logger = logging.getLogger(__name__)
 
 
 class TrayController:
@@ -41,6 +61,12 @@ class TrayController:
             self._load_icon_image(),
             "CopyScript",
             menu=self._build_menu(),
+        )
+        logger.info(
+            "Tray backend initialized: %s (menu=%s, default_action=%s)",
+            pystray.Icon.__module__,
+            pystray.Icon.HAS_MENU,
+            pystray.Icon.HAS_DEFAULT_ACTION,
         )
         self._icon.run_detached()
 

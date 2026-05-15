@@ -19,13 +19,15 @@ from copyscript.ui.theme import apply_theme
 
 IS_MACOS = platform.system() == "Darwin"
 IS_WINDOWS = platform.system() == "Windows"
+IS_LINUX = platform.system() == "Linux"
+HAS_TRAY = IS_WINDOWS or IS_LINUX
 logger = logging.getLogger(__name__)
 
 
 def should_hide_on_start(system_name: str, start_hidden: bool) -> bool:
     if system_name == "Darwin":
         return True
-    return system_name == "Windows" and start_hidden
+    return system_name in {"Windows", "Linux"} and start_hidden
 
 
 class AppWindow:
@@ -41,7 +43,7 @@ class AppWindow:
         self.root.configure(background="#f5f2ea")
         apply_theme(ttk.Style(self.root))
         self._configure_window_icon()
-        if IS_WINDOWS:
+        if HAS_TRAY:
             self._ui_action_queue = queue.Queue()
             self.root.after(50, self._drain_ui_actions)
 
@@ -66,7 +68,7 @@ class AppWindow:
         if IS_MACOS:
             self._setup_menubar()
             self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
-        elif IS_WINDOWS:
+        elif HAS_TRAY:
             self._setup_tray()
             self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
         else:
@@ -185,7 +187,7 @@ class AppWindow:
                 initial_running=self.controller.is_running,
             )
         except Exception:
-            logger.exception("Failed to initialize Windows tray controller")
+            logger.exception("Failed to initialize tray controller")
             self.status_ui = None
             if self._start_hidden:
                 self._show_window()
@@ -244,7 +246,7 @@ class AppWindow:
         self.root.after(50, self._drain_ui_actions)
 
     def _run_on_ui_thread(self, callback, *args) -> None:
-        if IS_WINDOWS and threading.get_ident() != self._ui_thread_id:
+        if HAS_TRAY and threading.get_ident() != self._ui_thread_id:
             if self._ui_action_queue is not None:
                 self._ui_action_queue.put((callback, args))
             return
