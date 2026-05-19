@@ -5,9 +5,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 from pathlib import Path
 
+from copyscript.config.models import CacheStatsDict
 from copyscript.platform.app_paths import get_cache_index_path, get_cache_items_dir
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now_iso() -> str:
@@ -18,13 +22,21 @@ def _cache_key(video_id: str, lang_code: str, include_timestamp: bool) -> str:
     return f"{video_id}|{lang_code}|{1 if include_timestamp else 0}"
 
 
-def _count_from_dict(data: dict, key: str, default: int) -> int:
+def _count_from_dict(data: dict[object, object], key: str, default: int) -> int:
     if key not in data:
         return default
-    try:
-        return max(0, int(data[key]))
-    except Exception:
+    value = data[key]
+    if not isinstance(value, int | str):
         return default
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _is_safe_cache_file_name(file_name: str) -> bool:
+    path = Path(file_name)
+    return bool(file_name) and path.name == file_name and not path.is_absolute()
 
 
 @dataclass
@@ -39,7 +51,7 @@ class CacheEntry:
     byte_count: int
     updated_at: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | int | bool]:
         return {
             "key": self.key,
             "video_id": self.video_id,
@@ -53,13 +65,20 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CacheEntry | None":
+    def from_dict(cls, data: object) -> CacheEntry | None:
+        if not isinstance(data, dict):
+            return None
         try:
             key = str(data.get("key", ""))
             video_id = str(data.get("video_id", ""))
             lang_code = str(data.get("lang_code", ""))
             file_name = str(data.get("file_name", ""))
-            if not key or not video_id or not lang_code or not file_name:
+            if (
+                not key
+                or not video_id
+                or not lang_code
+                or not _is_safe_cache_file_name(file_name)
+            ):
                 return None
             return cls(
                 key=key,
@@ -72,7 +91,7 @@ class CacheEntry:
                 byte_count=_count_from_dict(data, "byte_count", -1),
                 updated_at=str(data.get("updated_at", "")),
             )
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
 
@@ -82,7 +101,7 @@ class SubtitleCache:
         max_items: int = 100,
         index_path: Path | None = None,
         items_dir: Path | None = None,
-    ):
+    ) -> None:
         self.max_items = max(1, int(max_items))
         self.index_path = index_path or get_cache_index_path()
         self.items_dir = items_dir or get_cache_items_dir()
@@ -112,7 +131,10 @@ class SubtitleCache:
             self._evict_if_needed(save=False)
             if self._hydrate_missing_metadata():
                 self._save()
-        except Exception:
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            logger.warning(
+                "Failed to load subtitle cache index %s", self.index_path, exc_info=True
+            )
             self._entries.clear()
 
     def _save(self) -> None:
@@ -120,7 +142,9 @@ class SubtitleCache:
             "max_items": self.max_items,
             "entries": [entry.to_dict() for entry in self._entries.values()],
         }
-        self.index_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.index_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     def set_max_items(self, max_items: int) -> None:
         self.max_items = max(1, int(max_items))
@@ -132,8 +156,10 @@ class SubtitleCache:
             try:
                 if path.exists():
                     path.unlink()
-            except Exception:
-                pass
+            except OSError:
+                logger.warning(
+                    "Failed to delete cached subtitle file %s", path, exc_info=True
+                )
         self._entries.clear()
         self._save()
 
@@ -158,7 +184,10 @@ class SubtitleCache:
                 entry.char_count = len(text)
                 entry.byte_count = path.stat().st_size
                 changed = True
-            except Exception:
+            except OSError:
+                logger.warning(
+                    "Failed to hydrate cache metadata from %s", path, exc_info=True
+                )
                 entry.char_count = max(0, entry.char_count)
                 entry.byte_count = max(0, entry.byte_count)
                 changed = True
@@ -176,14 +205,19 @@ class SubtitleCache:
             return None
         try:
             text = path.read_text(encoding="utf-8")
-        except Exception:
+        except (OSError, UnicodeDecodeError):
+            logger.warning(
+                "Failed to read cached subtitle file %s", path, exc_info=True
+            )
             return None
         entry.updated_at = _utc_now_iso()
         self._entries.move_to_end(key)
         self._save()
         return text
 
-    def put(self, video_id: str, lang_code: str, include_timestamp: bool, text: str) -> None:
+    def put(
+        self, video_id: str, lang_code: str, include_timestamp: bool, text: str
+    ) -> None:
         key = _cache_key(video_id, lang_code, include_timestamp)
         path = self.items_dir / self._entry_file_name(key)
         path.write_text(text, encoding="utf-8")
@@ -211,13 +245,15 @@ class SubtitleCache:
             try:
                 if path.exists():
                     path.unlink()
-            except Exception:
-                pass
+            except OSError:
+                logger.warning(
+                    "Failed to delete evicted subtitle file %s", path, exc_info=True
+                )
             changed = True
         if save or changed:
             self._save()
 
-    def stats(self) -> dict:
+    def stats(self) -> CacheStatsDict:
         total_chars = 0
         total_lines = 0
         total_bytes = 0

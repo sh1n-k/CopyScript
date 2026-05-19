@@ -91,7 +91,9 @@ def _has_legacy_run_key_value() -> bool:
     import winreg
 
     try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH, 0, winreg.KEY_READ) as key:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH, 0, winreg.KEY_READ
+        ) as key:
             value, _ = winreg.QueryValueEx(key, WINDOWS_RUN_VALUE_NAME)
             return bool(str(value).strip())
     except FileNotFoundError:
@@ -102,7 +104,9 @@ def _has_legacy_run_key_value() -> bool:
 
 def _delete_legacy_run_key_value(winreg_module) -> None:
     try:
-        with winreg_module.CreateKey(winreg_module.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH) as key:
+        with winreg_module.CreateKey(
+            winreg_module.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH
+        ) as key:
             try:
                 winreg_module.DeleteValue(key, WINDOWS_RUN_VALUE_NAME)
             except FileNotFoundError:

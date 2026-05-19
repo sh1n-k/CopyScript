@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
+import tkinter as tk
 from tkinter import ttk
+
+logger = logging.getLogger(__name__)
 
 SURFACE = "#f5f2ea"
 CARD = "#fbf9f3"
@@ -21,16 +25,20 @@ SMALL_FONT = ("Helvetica", 9)
 def apply_theme(style: ttk.Style) -> None:
     try:
         style.theme_use("clam")
-    except Exception:
-        pass
+    except tk.TclError:
+        logger.debug("Failed to switch ttk theme to clam", exc_info=True)
     style.configure("Root.TFrame", background=SURFACE)
     style.configure("Card.TFrame", background=CARD, relief="flat")
     style.configure("Title.TLabel", background=CARD, foreground=TEXT, font=TITLE_FONT)
     style.configure("Body.TLabel", background=SURFACE, foreground=TEXT, font=UI_FONT)
     style.configure("Muted.TLabel", background=SURFACE, foreground=MUTED, font=UI_FONT)
     style.configure("CardBody.TLabel", background=CARD, foreground=TEXT, font=UI_FONT)
-    style.configure("CardMuted.TLabel", background=CARD, foreground=MUTED, font=SMALL_FONT)
-    style.configure("Hint.TLabel", background=SURFACE, foreground=MUTED, font=SMALL_FONT)
+    style.configure(
+        "CardMuted.TLabel", background=CARD, foreground=MUTED, font=SMALL_FONT
+    )
+    style.configure(
+        "Hint.TLabel", background=SURFACE, foreground=MUTED, font=SMALL_FONT
+    )
     style.configure("Primary.TButton", font=UI_FONT)
     style.configure("TCheckbutton", background=CARD, foreground=TEXT, font=UI_FONT)
     style.configure("TCombobox", font=UI_FONT)

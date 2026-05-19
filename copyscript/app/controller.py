@@ -1,27 +1,31 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 import logging
-from typing import Callable
 
 from copyscript.app.settings_store import SettingsStore
-from copyscript.config.models import HistoryEntry, ProcessingOptions
+from copyscript.config.models import CacheStatsDict, HistoryEntry, ProcessingOptions
 from copyscript.core.clipboard_monitor import ClipboardMonitor
 from copyscript.core.subtitle_cache import SubtitleCache
 from copyscript.core.subtitle_fetcher import SubtitleFetcher
 from copyscript.platform.clipboard_watchers import ClipboardWatcher, create_watcher
-from copyscript.platform.launch_at_login import is_launch_at_login_enabled, set_launch_at_login, supports_launch_at_login
+from copyscript.platform.launch_at_login import (
+    is_launch_at_login_enabled,
+    set_launch_at_login,
+    supports_launch_at_login,
+)
 from copyscript.platform.notifier import Notifier
 
 StatusHandler = Callable[[str, bool], None]
 HistoryHandler = Callable[[list[HistoryEntry]], None]
-CacheHandler = Callable[[dict], None]
+CacheHandler = Callable[[CacheStatsDict], None]
 RunningHandler = Callable[[bool], None]
 logger = logging.getLogger(__name__)
 
 
 class AppController:
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings_store = SettingsStore()
         self.settings = self.settings_store.load()
         self.history = list(self.settings.recent_history)
@@ -88,7 +92,9 @@ class AppController:
 
     def start_monitoring(self) -> None:
         if self.is_running:
-            logger.debug("start_monitoring ignored because monitoring is already running")
+            logger.debug(
+                "start_monitoring ignored because monitoring is already running"
+            )
             return
         logger.info("Starting monitoring")
         self.is_running = True
@@ -99,7 +105,9 @@ class AppController:
 
     def stop_monitoring(self) -> None:
         if not self.is_running:
-            logger.debug("stop_monitoring ignored because monitoring is already stopped")
+            logger.debug(
+                "stop_monitoring ignored because monitoring is already stopped"
+            )
             return
         logger.info("Stopping monitoring")
         self.is_running = False
@@ -129,22 +137,36 @@ class AppController:
     def update_monitor_on_launch(self, enabled: bool) -> None:
         self.settings.monitor_on_launch = enabled
         self._save_settings()
-        self._handle_status_change("앱 실행 시 모니터링 자동 시작: 켜짐" if enabled else "앱 실행 시 모니터링 자동 시작: 꺼짐", False)
+        self._handle_status_change(
+            "앱 실행 시 모니터링 자동 시작: 켜짐"
+            if enabled
+            else "앱 실행 시 모니터링 자동 시작: 꺼짐",
+            False,
+        )
 
     def update_launch_at_login(self, enabled: bool) -> None:
         if supports_launch_at_login() and not set_launch_at_login(enabled):
-            self._handle_status_change("로그인 시 앱 자동 실행 설정 변경에 실패했습니다", True)
+            self._handle_status_change(
+                "로그인 시 앱 자동 실행 설정 변경에 실패했습니다", True
+            )
             return
         self.settings.launch_at_login = enabled
         self._save_settings()
-        self._handle_status_change("로그인 시 앱 자동 실행: 켜짐" if enabled else "로그인 시 앱 자동 실행: 꺼짐", False)
+        self._handle_status_change(
+            "로그인 시 앱 자동 실행: 켜짐"
+            if enabled
+            else "로그인 시 앱 자동 실행: 꺼짐",
+            False,
+        )
 
     def update_cache_size(self, value: int) -> None:
         self.settings.cache_max_items = max(1, int(value))
         self.cache.set_max_items(self.settings.cache_max_items)
         self._save_settings()
         self._on_cache(self.cache.stats())
-        self._handle_status_change(f"캐시 길이 변경: {self.settings.cache_max_items}", False)
+        self._handle_status_change(
+            f"캐시 길이 변경: {self.settings.cache_max_items}", False
+        )
 
     def clear_history(self) -> None:
         self.history.clear()

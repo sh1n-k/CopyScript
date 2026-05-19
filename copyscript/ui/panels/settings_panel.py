@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import tkinter as tk
 import platform
+import tkinter as tk
+from collections.abc import Callable
 from tkinter import ttk
 
 from copyscript.config.languages import build_language_maps
@@ -13,18 +14,18 @@ IS_WINDOWS = platform.system() == "Windows"
 class SettingsPanel(ttk.Frame):
     def __init__(
         self,
-        parent,
+        parent: tk.Widget,
         *,
         settings: AppSettings,
-        on_language_change,
-        on_timestamp_change,
-        on_monitor_on_launch_change,
-        on_launch_at_login_change,
-        on_cache_size_change,
-        on_toggle,
-        on_clear,
-        on_quit,
-    ):
+        on_language_change: Callable[[str], None],
+        on_timestamp_change: Callable[[bool], None],
+        on_monitor_on_launch_change: Callable[[bool], None],
+        on_launch_at_login_change: Callable[[bool], None],
+        on_cache_size_change: Callable[[int], None],
+        on_toggle: Callable[[], None],
+        on_clear: Callable[[], None],
+        on_quit: Callable[[], None],
+    ) -> None:
         super().__init__(parent, style="Card.TFrame", padding=12)
         self.labels, self.label_to_code, self.code_to_label = build_language_maps()
         self._on_language_change = on_language_change
@@ -33,13 +34,17 @@ class SettingsPanel(ttk.Frame):
         self._on_launch_at_login_change = on_launch_at_login_change
         self._on_cache_size_change = on_cache_size_change
 
-        ttk.Label(self, text="사용자 설정 및 제어", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(self, text="사용자 설정 및 제어", style="Title.TLabel").pack(
+            anchor=tk.W, pady=(0, 8)
+        )
 
         form = ttk.Frame(self, style="Card.TFrame")
         form.pack(fill=tk.X)
         form.columnconfigure(1, weight=1)
 
-        ttk.Label(form, text="언어", style="CardMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 6))
+        ttk.Label(form, text="언어", style="CardMuted.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, 6)
+        )
 
         initial_lang = self.code_to_label.get(settings.lang_code, self.labels[0])
         self.lang_var = tk.StringVar(value=initial_lang)
@@ -53,7 +58,9 @@ class SettingsPanel(ttk.Frame):
         self.lang_combo.grid(row=0, column=1, sticky="w", pady=(0, 6))
         self.lang_combo.bind("<<ComboboxSelected>>", self._handle_language)
 
-        ttk.Label(form, text="출력 형식", style="CardMuted.TLabel").grid(row=1, column=0, sticky="nw", pady=(0, 6))
+        ttk.Label(form, text="출력 형식", style="CardMuted.TLabel").grid(
+            row=1, column=0, sticky="nw", pady=(0, 6)
+        )
         self.timestamp_var = tk.BooleanVar(value=settings.include_timestamp)
         ttk.Checkbutton(
             form,
@@ -62,7 +69,9 @@ class SettingsPanel(ttk.Frame):
             command=self._handle_timestamp,
         ).grid(row=1, column=1, sticky="w", pady=(0, 6))
 
-        ttk.Label(form, text="시작 옵션", style="CardMuted.TLabel").grid(row=2, column=0, sticky="nw", pady=(0, 6))
+        ttk.Label(form, text="시작 옵션", style="CardMuted.TLabel").grid(
+            row=2, column=0, sticky="nw", pady=(0, 6)
+        )
         self.monitor_on_launch_var = tk.BooleanVar(value=settings.monitor_on_launch)
         ttk.Checkbutton(
             form,
@@ -82,7 +91,9 @@ class SettingsPanel(ttk.Frame):
             ).grid(row=3, column=1, sticky="w", pady=(0, 6))
             next_row = 4
 
-        ttk.Label(form, text="캐시 길이", style="CardMuted.TLabel").grid(row=next_row, column=0, sticky="w")
+        ttk.Label(form, text="캐시 길이", style="CardMuted.TLabel").grid(
+            row=next_row, column=0, sticky="w"
+        )
         cache_frame = ttk.Frame(form, style="Card.TFrame")
         cache_frame.grid(row=next_row, column=1, sticky="w")
         self.cache_size_var = tk.IntVar(value=settings.cache_max_items)
@@ -95,17 +106,29 @@ class SettingsPanel(ttk.Frame):
             command=self._handle_cache_size,
         )
         self.cache_spin.pack(side=tk.LEFT)
-        ttk.Label(cache_frame, text="항목", style="CardMuted.TLabel").pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(cache_frame, text="항목", style="CardMuted.TLabel").pack(
+            side=tk.LEFT, padx=(8, 0)
+        )
         self.cache_spin.bind("<FocusOut>", self._handle_cache_size)
         self.cache_spin.bind("<Return>", self._handle_cache_size)
 
         ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(10, 10))
         button_row = ttk.Frame(self, style="Card.TFrame")
         button_row.pack(fill=tk.X)
-        self.toggle_button = ttk.Button(button_row, text="▶ 시작", command=on_toggle, width=12, style="Primary.TButton")
+        self.toggle_button = ttk.Button(
+            button_row,
+            text="▶ 시작",
+            command=on_toggle,
+            width=12,
+            style="Primary.TButton",
+        )
         self.toggle_button.pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(button_row, text="내역 지우기", command=on_clear, width=12).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(button_row, text="종료", command=on_quit, width=12).pack(side=tk.LEFT)
+        ttk.Button(button_row, text="내역 지우기", command=on_clear, width=12).pack(
+            side=tk.LEFT, padx=(0, 10)
+        )
+        ttk.Button(button_row, text="종료", command=on_quit, width=12).pack(
+            side=tk.LEFT
+        )
 
     def set_language_code(self, code: str) -> None:
         label = self.code_to_label.get(code)
@@ -130,7 +153,7 @@ class SettingsPanel(ttk.Frame):
             return selected.split("(")[-1].rstrip(")")
         return "ko"
 
-    def _handle_language(self, event=None) -> None:
+    def _handle_language(self, event: object = None) -> None:
         del event
         self._on_language_change(self._current_language_code())
 
@@ -143,11 +166,11 @@ class SettingsPanel(ttk.Frame):
     def _handle_launch_at_login(self) -> None:
         self._on_launch_at_login_change(bool(self.launch_at_login_var.get()))
 
-    def _handle_cache_size(self, event=None) -> None:
+    def _handle_cache_size(self, event: object = None) -> None:
         del event
         try:
             value = max(1, int(self.cache_size_var.get()))
-        except Exception:
+        except (tk.TclError, ValueError):
             value = 100
         self.cache_size_var.set(value)
         self._on_cache_size_change(value)

@@ -63,6 +63,8 @@ Windows 설치는 현재 사용자 기준으로 `%LOCALAPPDATA%\Programs\CopyScr
 ## 개발 검증
 ```bash
 uv run ruff check .
+uv run ruff format --check .
+uv run pyright
 uv run pytest
 ```
 

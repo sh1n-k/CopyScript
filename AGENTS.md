@@ -14,6 +14,8 @@
 
 ## Test Commands
 - Lint (preferred): `uv run ruff check .`
+- Format check: `uv run ruff format --check .`
+- Type check: `uv run pyright`
 - If `ruff` is unavailable, run at least syntax validation: `python -m compileall .`
 - Unit tests: `uv run pytest`
 - E2E (startup/install path on macOS):

@@ -9,7 +9,9 @@ from copyscript.platform import launch_at_login
 
 
 class LaunchAtLoginTest(unittest.TestCase):
-    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
+    @patch(
+        "copyscript.platform.launch_at_login.platform.system", return_value="Windows"
+    )
     def test_build_launch_command_for_script_mode(self, _system):
         with patch.object(sys, "argv", ["-m", "copyscript"]):
             command = launch_at_login.build_launch_command()
@@ -19,7 +21,9 @@ class LaunchAtLoginTest(unittest.TestCase):
         self.assertNotIn(" main.py", command)
         self.assertIn("copyscript", command)
 
-    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
+    @patch(
+        "copyscript.platform.launch_at_login.platform.system", return_value="Windows"
+    )
     def test_set_launch_at_login_creates_startup_script(self, _system):
         fake_winreg = types.SimpleNamespace(
             HKEY_CURRENT_USER=object(),
@@ -28,7 +32,9 @@ class LaunchAtLoginTest(unittest.TestCase):
             CreateKey=MagicMock(),
             OpenKey=MagicMock(),
             DeleteValue=MagicMock(),
-            QueryValueEx=MagicMock(return_value=('\"C:\\\\Programs\\\\CopyScript.exe\" --hidden', 1)),
+            QueryValueEx=MagicMock(
+                return_value=('"C:\\\\Programs\\\\CopyScript.exe" --hidden', 1)
+            ),
         )
         fake_key = MagicMock()
         fake_winreg.CreateKey.return_value.__enter__.return_value = fake_key
@@ -36,9 +42,12 @@ class LaunchAtLoginTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             startup_script_path = Path(temp_dir) / "CopyScript Startup.vbs"
-            with patch.dict(sys.modules, {"winreg": fake_winreg}), patch(
-                "copyscript.platform.launch_at_login.get_startup_script_path",
-                return_value=startup_script_path,
+            with (
+                patch.dict(sys.modules, {"winreg": fake_winreg}),
+                patch(
+                    "copyscript.platform.launch_at_login.get_startup_script_path",
+                    return_value=startup_script_path,
+                ),
             ):
                 result = launch_at_login.set_launch_at_login(
                     True,
@@ -51,10 +60,15 @@ class LaunchAtLoginTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertTrue(enabled)
         self.assertIn("WScript.Sleep 15000", script_content)
-        self.assertIn('shell.Run """C:\\Programs\\CopyScript.exe"" --hidden", 0, False', script_content)
+        self.assertIn(
+            'shell.Run """C:\\Programs\\CopyScript.exe"" --hidden", 0, False',
+            script_content,
+        )
         fake_winreg.DeleteValue.assert_called_once()
 
-    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
+    @patch(
+        "copyscript.platform.launch_at_login.platform.system", return_value="Windows"
+    )
     def test_disable_launch_at_login_deletes_value(self, _system):
         fake_winreg = types.SimpleNamespace(
             HKEY_CURRENT_USER=object(),
@@ -69,9 +83,12 @@ class LaunchAtLoginTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             startup_script_path = Path(temp_dir) / "CopyScript Startup.vbs"
             startup_script_path.write_text("test", encoding="utf-16")
-            with patch.dict(sys.modules, {"winreg": fake_winreg}), patch(
-                "copyscript.platform.launch_at_login.get_startup_script_path",
-                return_value=startup_script_path,
+            with (
+                patch.dict(sys.modules, {"winreg": fake_winreg}),
+                patch(
+                    "copyscript.platform.launch_at_login.get_startup_script_path",
+                    return_value=startup_script_path,
+                ),
             ):
                 result = launch_at_login.set_launch_at_login(False)
 
@@ -79,7 +96,9 @@ class LaunchAtLoginTest(unittest.TestCase):
         self.assertFalse(startup_script_path.exists())
         fake_winreg.DeleteValue.assert_called_once()
 
-    @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
+    @patch(
+        "copyscript.platform.launch_at_login.platform.system", return_value="Windows"
+    )
     def test_is_launch_at_login_enabled_when_startup_script_exists(self, _system):
         with tempfile.TemporaryDirectory() as temp_dir:
             startup_script_path = Path(temp_dir) / "CopyScript Startup.vbs"

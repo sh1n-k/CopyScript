@@ -6,13 +6,18 @@ import platform
 import queue
 import threading
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import ttk
-from typing import Any
-from typing import Callable
+from typing import Protocol
 
 from copyscript.app.controller import AppController
 from copyscript.app.runtime_options import RuntimeOptions
-from copyscript.config.constants import DEFAULT_GEOMETRY, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH
+from copyscript.config.constants import (
+    DEFAULT_GEOMETRY,
+    MIN_WINDOW_HEIGHT,
+    MIN_WINDOW_WIDTH,
+)
+from copyscript.config.models import CacheStatsDict, HistoryEntry
 from copyscript.platform.app_paths import get_icon_path
 from copyscript.ui.panels import CachePanel, HistoryPanel, SettingsPanel, StatusPanel
 from copyscript.ui.theme import apply_theme
@@ -22,6 +27,16 @@ IS_WINDOWS = platform.system() == "Windows"
 logger = logging.getLogger(__name__)
 
 
+class StatusUi(Protocol):
+    def update_running(self, is_running: bool) -> None: ...
+
+    def update_language(self, lang_code: str) -> None: ...
+
+    def update_timestamp(self, include: bool) -> None: ...
+
+    def cleanup(self) -> None: ...
+
+
 def should_hide_on_start(system_name: str, start_hidden: bool) -> bool:
     if system_name == "Darwin":
         return True
@@ -29,12 +44,14 @@ def should_hide_on_start(system_name: str, start_hidden: bool) -> bool:
 
 
 class AppWindow:
-    def __init__(self, runtime_options: RuntimeOptions | None = None):
+    def __init__(self, runtime_options: RuntimeOptions | None = None) -> None:
         self.runtime_options = runtime_options or RuntimeOptions()
         self.controller = AppController()
         self.root = tk.Tk()
         self._ui_thread_id = threading.get_ident()
-        self._ui_action_queue: queue.Queue[tuple[Callable[..., None], tuple[Any, ...]]] | None = None
+        self._ui_action_queue: (
+            queue.Queue[tuple[Callable[..., None], tuple[object, ...]]] | None
+        ) = None
         self.root.title("CopyScript")
         self.root.geometry(DEFAULT_GEOMETRY)
         self.root.resizable(False, False)
@@ -48,11 +65,13 @@ class AppWindow:
         saved_geometry = self.controller.settings.window_geometry
         if saved_geometry:
             self.root.geometry(self._normalize_geometry(saved_geometry))
-        self._start_hidden = should_hide_on_start(platform.system(), self.runtime_options.start_hidden)
+        self._start_hidden = should_hide_on_start(
+            platform.system(), self.runtime_options.start_hidden
+        )
         if self._start_hidden:
             self.root.withdraw()
 
-        self.status_ui = None
+        self.status_ui: StatusUi | None = None
         self._build_ui()
         self.controller.bind(
             on_status=self._queue_status,
@@ -109,7 +128,9 @@ class AppWindow:
 
     def _on_launch_at_login_change(self, enabled: bool) -> None:
         self.controller.update_launch_at_login(enabled)
-        self.settings_panel.set_launch_at_login(self.controller.settings.launch_at_login)
+        self.settings_panel.set_launch_at_login(
+            self.controller.settings.launch_at_login
+        )
 
     def _clear_history(self) -> None:
         self.history_panel.hide_tooltip()
@@ -118,10 +139,10 @@ class AppWindow:
     def _queue_status(self, status: str, is_error: bool) -> None:
         self._run_on_ui_thread(self.status_panel.set_status, status, is_error)
 
-    def _queue_history(self, items) -> None:
+    def _queue_history(self, items: list[HistoryEntry]) -> None:
         self._run_on_ui_thread(self.history_panel.set_items, items)
 
-    def _queue_cache(self, stats: dict) -> None:
+    def _queue_cache(self, stats: CacheStatsDict) -> None:
         self._run_on_ui_thread(self.cache_panel.refresh, stats)
 
     def _queue_running(self, is_running: bool) -> None:
@@ -175,8 +196,12 @@ class AppWindow:
             from copyscript.platform.tray import TrayController
 
             self.status_ui = TrayController(
-                on_toggle=lambda: self._run_on_ui_thread(self.controller.toggle_monitoring),
-                on_language=lambda code: self._run_on_ui_thread(self._tray_on_language, code),
+                on_toggle=lambda: self._run_on_ui_thread(
+                    self.controller.toggle_monitoring
+                ),
+                on_language=lambda code: self._run_on_ui_thread(
+                    self._tray_on_language, code
+                ),
                 on_timestamp=lambda: self._run_on_ui_thread(self._tray_on_timestamp),
                 on_show_settings=lambda: self._run_on_ui_thread(self._show_window),
                 on_quit=lambda: self._run_on_ui_thread(self._quit),
@@ -243,7 +268,7 @@ class AppWindow:
                 callback(*args)
         self.root.after(50, self._drain_ui_actions)
 
-    def _run_on_ui_thread(self, callback, *args) -> None:
+    def _run_on_ui_thread(self, callback: Callable[..., None], *args: object) -> None:
         if IS_WINDOWS and threading.get_ident() != self._ui_thread_id:
             if self._ui_action_queue is not None:
                 self._ui_action_queue.put((callback, args))
@@ -260,4 +285,4 @@ class AppWindow:
         try:
             self.root.iconbitmap(default=str(icon_path))
         except Exception:
-            pass
+            logger.debug("Failed to configure window icon %s", icon_path, exc_info=True)

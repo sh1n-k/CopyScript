@@ -6,6 +6,8 @@
 
 ## Verify
 - `uv run ruff check .`
+- `uv run ruff format --check .`
+- `uv run pyright`
 - `uv run pytest`
 - fallback: `python3 -m unittest discover -s tests -v`
 - fallback: `python3 -m compileall .`
