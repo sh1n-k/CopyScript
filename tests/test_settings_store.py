@@ -81,5 +81,5 @@ class SettingsStoreTest(unittest.TestCase):
             self.assertFalse(loaded.include_timestamp)
             self.assertTrue(loaded.monitor_on_launch)
             self.assertTrue(loaded.launch_at_login)
-            self.assertEqual(loaded.lang_code, "ko")
+            self.assertEqual(loaded.lang_code, "video-default")
             self.assertEqual(loaded.window_geometry, "")
