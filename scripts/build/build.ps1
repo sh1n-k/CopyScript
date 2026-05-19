@@ -1,7 +1,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
 Set-Location $projectRoot
 
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
@@ -18,8 +19,8 @@ Write-Host "=== 이전 빌드 정리 ==="
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 
 Write-Host "=== Windows 앱 빌드 ==="
-uv run python -m PyInstaller --noconfirm --clean CopyScript.spec
+uv run python -m PyInstaller --noconfirm --clean packaging\pyinstaller\CopyScript.spec
 
 Write-Host ""
 Write-Host "빌드 완료: dist\\CopyScript\\CopyScript.exe"
-Write-Host "설치하려면: .\\install.ps1"
+Write-Host "설치하려면: .\\scripts\\install\\install.ps1"

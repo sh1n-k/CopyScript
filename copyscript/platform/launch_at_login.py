@@ -28,8 +28,9 @@ def build_launch_command(executable_path: str | None = None) -> str:
     if getattr(sys, "frozen", False):
         return f'"{Path(sys.executable).resolve()}" --hidden'
 
-    script_path = Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0] else _default_script_path()
-    return f'"{Path(sys.executable).resolve()}" "{script_path}" --hidden'
+    project_root = Path(__file__).resolve().parents[2]
+    python_path = Path(sys.executable).resolve()
+    return f'cmd /c cd /d "{project_root}" && "{python_path}" -m copyscript --hidden'
 
 
 def get_startup_script_path() -> Path:
@@ -84,10 +85,6 @@ def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bo
     except Exception:
         logger.exception("Unexpected failure while updating launch-at-login state")
         return False
-
-
-def _default_script_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "main.py"
 
 
 def _has_legacy_run_key_value() -> bool:

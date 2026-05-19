@@ -4,7 +4,7 @@ from pathlib import Path
 import platform
 
 
-project_root = Path(SPECPATH)
+project_root = Path(SPECPATH).parents[1]
 is_macos = platform.system() == "Darwin"
 is_windows = platform.system() == "Windows"
 hiddenimports = ["youtube_transcript_api"]
@@ -20,7 +20,7 @@ if is_windows:
     datas.append((str(icon_path), "assets"))
 
 a = Analysis(
-    ["copyscript/main.py"],
+    [str(project_root / "copyscript" / "main.py")],
     pathex=[],
     binaries=[],
     datas=datas,

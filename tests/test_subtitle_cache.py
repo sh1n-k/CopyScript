@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from subtitle_cache import SubtitleCache
+from copyscript.core.subtitle_cache import SubtitleCache
 
 
 class SubtitleCacheTest(unittest.TestCase):

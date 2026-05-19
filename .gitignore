@@ -10,10 +10,10 @@ __pycache__/
 .mypy_cache/
 
 # PyInstaller
-build/
-dist/
+/build/
+/dist/
 *.spec
-!CopyScript.spec
+!packaging/pyinstaller/CopyScript.spec
 
 # App data
 app_settings.json
@@ -27,3 +27,4 @@ output.txt
 .idea/
 .vscode/
 .claude/
+.worktrees/

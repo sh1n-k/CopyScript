@@ -19,7 +19,7 @@ URL 복사 한 번으로 자막 텍스트를 바로 붙여넣을 수 있어, 요
 ## 빠른 실행
 ```bash
 uv sync --group dev
-uv run python main.py
+uv run python -m copyscript
 ```
 
 ## 사용 방법
@@ -37,25 +37,25 @@ Windows에서는 실행 중 창을 닫아도 앱이 종료되지 않고 트레�
 ## 빌드
 ### macOS
 ```bash
-./build.sh
+./scripts/build/build.sh
 ```
 
 ### Windows
 ```powershell
-.\build.ps1
+.\scripts\build\build.ps1
 ```
 
 ## 설치 / 제거
 ### macOS
 ```bash
-./install.sh
-./uninstall.sh
+./scripts/install/install.sh
+./scripts/install/uninstall.sh
 ```
 
 ### Windows
 ```powershell
-.\install.ps1
-.\uninstall.ps1
+.\scripts\install\install.ps1
+.\scripts\install\uninstall.ps1
 ```
 
 Windows 설치는 현재 사용자 기준으로 `%LOCALAPPDATA%\Programs\CopyScript`에 앱을 복사하고, 로그인 후 짧은 지연 뒤 `--hidden` 모드로 자동 실행되도록 Startup 스크립트를 등록합니다. 이 지연은 재부팅 직후 Explorer/트레이 초기화 타이밍 때문에 아이콘이 누락되는 문제를 줄이기 위한 것입니다.
@@ -77,9 +77,13 @@ copyscript/
   core/      # URL 파싱, 자막 추출, 캐시, 클립보드 처리 파이프라인
   platform/  # 경로, 알림, 클립보드 watcher, macOS menubar
   ui/        # Tkinter window, 패널, theme
+scripts/
+  build/     # 빌드 스크립트
+  install/   # 설치/제거 스크립트
+packaging/
+  pyinstaller/  # PyInstaller spec
 ```
 
-- 루트의 `main.py`, `subtitle_fetcher.py` 같은 파일은 하위 호환용 얇은 wrapper 입니다.
 - 새 기능 추가는 가능한 한 `copyscript/` 내부에서만 진행하는 것을 권장합니다.
 - 테스트 가능한 로직은 `copyscript/core/`, `copyscript/app/`, `copyscript/platform/`에 두고, `copyscript/ui/`는 화면 조립과 이벤트 연결에 집중합니다.
 

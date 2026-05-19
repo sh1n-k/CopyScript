@@ -4,7 +4,8 @@ set -euo pipefail
 APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SRC_APP="$SCRIPT_DIR/dist/$APP_NAME.app"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SRC_APP="$PROJECT_ROOT/dist/$APP_NAME.app"
 DEST_APP="/Applications/$APP_NAME.app"
 EXEC_PATH="$DEST_APP/Contents/MacOS/$APP_NAME"
 PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
@@ -30,7 +31,7 @@ bootstrap_agent() {
 # --- 빌드 확인 ---
 if [ ! -d "$SRC_APP" ]; then
     echo "오류: $SRC_APP 을 찾을 수 없습니다."
-    echo "먼저 ./build.sh 를 실행하세요."
+    echo "먼저 ./scripts/build/build.sh 를 실행하세요."
     exit 1
 fi
 
@@ -82,4 +83,4 @@ echo "  앱 실행: 즉시 메뉴바로 시작했습니다"
 echo "  자동실행: 로그인 시 자동 시작됩니다"
 echo "  설정 화면: 메뉴바 CC > 설정 열기"
 echo ""
-echo "  제거하려면: ./uninstall.sh"
+echo "  제거하려면: ./scripts/install/uninstall.sh"

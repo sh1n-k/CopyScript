@@ -11,11 +11,13 @@ from copyscript.platform import launch_at_login
 class LaunchAtLoginTest(unittest.TestCase):
     @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
     def test_build_launch_command_for_script_mode(self, _system):
-        with patch.object(sys, "argv", ["main.py"]):
+        with patch.object(sys, "argv", ["-m", "copyscript"]):
             command = launch_at_login.build_launch_command()
 
         self.assertIn("--hidden", command)
-        self.assertIn("main.py", command)
+        self.assertIn("-m copyscript", command)
+        self.assertNotIn(" main.py", command)
+        self.assertIn("copyscript", command)
 
     @patch("copyscript.platform.launch_at_login.platform.system", return_value="Windows")
     def test_set_launch_at_login_creates_startup_script(self, _system):
