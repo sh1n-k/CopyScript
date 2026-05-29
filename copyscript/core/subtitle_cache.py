@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import threading
 
 from copyscript.platform.app_paths import get_cache_index_path, get_cache_items_dir
 
@@ -74,6 +75,7 @@ class SubtitleCache:
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
         self.items_dir.mkdir(parents=True, exist_ok=True)
         self._entries: OrderedDict[str, CacheEntry] = OrderedDict()
+        self._lock = threading.RLock()
         self._load()
 
     def _load(self) -> None:
@@ -106,59 +108,65 @@ class SubtitleCache:
         self.index_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def set_max_items(self, max_items: int) -> None:
-        self.max_items = max(1, int(max_items))
-        self._evict_if_needed(save=True)
+        with self._lock:
+            self.max_items = max(1, int(max_items))
+            self._evict_if_needed(save=True)
 
     def clear_all(self) -> None:
-        for entry in list(self._entries.values()):
-            path = self.items_dir / entry.file_name
-            try:
-                if path.exists():
-                    path.unlink()
-            except Exception:
-                pass
-        self._entries.clear()
-        self._save()
+        with self._lock:
+            for entry in list(self._entries.values()):
+                path = self.items_dir / entry.file_name
+                try:
+                    if path.exists():
+                        path.unlink()
+                except Exception:
+                    pass
+            self._entries.clear()
+            self._save()
 
     def _entry_file_name(self, key: str) -> str:
         digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
         return f"{digest}.txt"
 
     def get(self, video_id: str, lang_code: str, include_timestamp: bool) -> str | None:
-        key = _cache_key(video_id, lang_code, include_timestamp)
-        entry = self._entries.get(key)
-        if entry is None:
-            return None
-        path = self.items_dir / entry.file_name
-        if not path.exists():
-            self._entries.pop(key, None)
-            self._save()
-            return None
-        try:
-            text = path.read_text(encoding="utf-8")
-        except Exception:
-            return None
-        entry.updated_at = _utc_now_iso()
-        self._entries.move_to_end(key)
-        self._save()
-        return text
+        with self._lock:
+            key = _cache_key(video_id, lang_code, include_timestamp)
+            entry = self._entries.get(key)
+            if entry is None:
+                return None
+            path = self.items_dir / entry.file_name
+            if not path.exists():
+                self._entries.pop(key, None)
+                self._save()
+                return None
+            try:
+                text = path.read_text(encoding="utf-8")
+            except Exception:
+                return None
+            # LRU 순서/updated_at 갱신은 메모리에서만 처리한다.
+            # 인덱스는 put/evict/clear 등 쓰기 시점에 영속화되므로
+            # 읽기 적중마다 전체 인덱스를 다시 쓰지 않는다.
+            entry.updated_at = _utc_now_iso()
+            self._entries.move_to_end(key)
+            return text
 
     def put(self, video_id: str, lang_code: str, include_timestamp: bool, text: str) -> None:
-        key = _cache_key(video_id, lang_code, include_timestamp)
-        path = self.items_dir / self._entry_file_name(key)
-        path.write_text(text, encoding="utf-8")
-        entry = CacheEntry(
-            key=key,
-            video_id=video_id,
-            lang_code=lang_code,
-            include_timestamp=include_timestamp,
-            file_name=path.name,
-            line_count=text.count("\n") + 1 if text else 0,
-            updated_at=_utc_now_iso(),
-        )
-        self._entries[key] = entry
-        self._entries.move_to_end(key)
-        self._evict_if_needed(save=True)
+        with self._lock:
+            key = _cache_key(video_id, lang_code, include_timestamp)
+            path = self.items_dir / self._entry_file_name(key)
+            path.write_text(text, encoding="utf-8")
+            entry = CacheEntry(
+                key=key,
+                video_id=video_id,
+                lang_code=lang_code,
+                include_timestamp=include_timestamp,
+                file_name=path.name,
+                line_count=text.count("\n") + 1 if text else 0,
+                updated_at=_utc_now_iso(),
+            )
+            self._entries[key] = entry
+            self._entries.move_to_end(key)
+            self._evict_if_needed(save=True)
 
     def _evict_if_needed(self, save: bool) -> None:
         changed = False
@@ -175,38 +183,36 @@ class SubtitleCache:
             self._save()
 
     def stats(self) -> dict:
-        total_chars = 0
-        total_lines = 0
-        total_bytes = 0
-        entries_recent = []
-        for entry in self._entries.values():
-            path = self.items_dir / entry.file_name
-            if path.exists():
+        with self._lock:
+            total_lines = 0
+            total_bytes = 0
+            entries_recent = []
+            for entry in self._entries.values():
+                path = self.items_dir / entry.file_name
+                # 파일 내용을 다시 읽지 않고, 저장된 line_count와 stat() 크기만 사용한다.
                 try:
-                    content = path.read_text(encoding="utf-8")
-                    total_chars += len(content)
-                    total_lines += content.count("\n") + 1 if content else 0
                     total_bytes += path.stat().st_size
-                except Exception:
-                    continue
-            entries_recent.append(
-                {
-                    "video_id": entry.video_id,
-                    "lang_code": entry.lang_code,
-                    "include_timestamp": entry.include_timestamp,
-                    "line_count": entry.line_count,
-                    "updated_at": entry.updated_at,
-                }
-            )
-        item_count = len(entries_recent)
-        max_items = max(1, self.max_items)
-        utilization = int((item_count / max_items) * 100)
-        return {
-            "item_count": item_count,
-            "max_items": max_items,
-            "utilization_pct": utilization,
-            "total_chars": total_chars,
-            "total_lines": total_lines,
-            "total_bytes": total_bytes,
-            "entries_recent": list(reversed(entries_recent)),
-        }
+                except OSError:
+                    pass
+                else:
+                    total_lines += entry.line_count
+                entries_recent.append(
+                    {
+                        "video_id": entry.video_id,
+                        "lang_code": entry.lang_code,
+                        "include_timestamp": entry.include_timestamp,
+                        "line_count": entry.line_count,
+                        "updated_at": entry.updated_at,
+                    }
+                )
+            item_count = len(entries_recent)
+            max_items = max(1, self.max_items)
+            utilization = int((item_count / max_items) * 100)
+            return {
+                "item_count": item_count,
+                "max_items": max_items,
+                "utilization_pct": utilization,
+                "total_lines": total_lines,
+                "total_bytes": total_bytes,
+                "entries_recent": list(reversed(entries_recent)),
+            }

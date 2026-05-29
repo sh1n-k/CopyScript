@@ -42,6 +42,10 @@ class AppWindow:
             self.root.withdraw()
 
         self.status_ui = None
+        # 창이 숨겨져 있을 때는 마지막 히스토리/캐시 값만 보관하고 위젯 갱신을
+        # 미뤘다가, 창을 다시 열 때 한 번에 반영한다.
+        self._latest_history = None
+        self._latest_cache = None
         self._build_ui()
         self.controller.bind(
             on_status=self._queue_status,
@@ -60,6 +64,9 @@ class AppWindow:
             self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
         else:
             self.root.protocol("WM_DELETE_WINDOW", self._quit)
+        # OS 최소화→복원 등 메뉴바/트레이를 거치지 않는 표시 경로에서도
+        # 보류된 패널 갱신을 반영한다.
+        self.root.bind("<Map>", self._on_map)
         if self.controller.settings.monitor_on_launch:
             self.root.after(120, self.controller.start_monitoring)
 
@@ -110,11 +117,37 @@ class AppWindow:
 
     def _queue_history(self, items) -> None:
         if self.root.winfo_exists():
-            self.root.after(0, lambda: self.history_panel.set_items(items))
+            self.root.after(0, lambda: self._apply_history(items))
 
     def _queue_cache(self, stats: dict) -> None:
         if self.root.winfo_exists():
-            self.root.after(0, lambda: self.cache_panel.refresh(stats))
+            self.root.after(0, lambda: self._apply_cache(stats))
+
+    def _apply_history(self, items) -> None:
+        self._latest_history = items
+        if self._window_visible():
+            self.history_panel.set_items(items)
+
+    def _apply_cache(self, stats: dict) -> None:
+        self._latest_cache = stats
+        if self._window_visible():
+            self.cache_panel.refresh(stats)
+
+    def _window_visible(self) -> bool:
+        try:
+            return bool(self.root.winfo_viewable())
+        except Exception:
+            return True
+
+    def _flush_pending_panels(self) -> None:
+        if self._latest_history is not None:
+            self.history_panel.set_items(self._latest_history)
+        if self._latest_cache is not None:
+            self.cache_panel.refresh(self._latest_cache)
+
+    def _on_map(self, event) -> None:
+        if event.widget is self.root:
+            self._flush_pending_panels()
 
     def _queue_running(self, is_running: bool) -> None:
         if self.root.winfo_exists():
@@ -202,6 +235,7 @@ class AppWindow:
     def _show_window(self) -> None:
         self.root.deiconify()
         self.root.lift()
+        self._flush_pending_panels()
         if IS_MACOS:
             appkit = importlib.import_module("AppKit")
             appkit.NSApplication.sharedApplication().activateIgnoringOtherApps_(True)

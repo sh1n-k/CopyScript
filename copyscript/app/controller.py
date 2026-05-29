@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import threading
 from typing import Callable
 
 from copyscript.app.settings_store import SettingsStore
@@ -20,6 +21,10 @@ RunningHandler = Callable[[bool], None]
 
 class AppController:
     def __init__(self):
+        # 클립보드 처리는 워치 백그라운드 스레드에서, 설정/메뉴 변경은 메인
+        # 스레드에서 일어난다. settings/history와 캐시·처리 id 리셋 조율을 이
+        # 재진입 락으로 직렬화한다(네트워크 fetch는 락 밖에서 실행).
+        self._lock = threading.RLock()
         self.settings_store = SettingsStore()
         self.settings = self.settings_store.load()
         self.history = list(self.settings.recent_history)
@@ -70,8 +75,9 @@ class AppController:
         self._on_running(self.is_running)
 
     def set_window_geometry(self, geometry: str) -> None:
-        self.settings.window_geometry = geometry
-        self._save_settings()
+        with self._lock:
+            self.settings.window_geometry = geometry
+            self._save_settings()
 
     def handle_clipboard_change(self) -> None:
         if not self.is_running or self._closing:
@@ -79,18 +85,20 @@ class AppController:
         self.monitor.check_and_process()
 
     def start_monitoring(self) -> None:
-        if self.is_running:
-            return
-        self.is_running = True
-        self.monitor.reset()
+        with self._lock:
+            if self.is_running:
+                return
+            self.is_running = True
+            self.monitor.reset()
         self._on_running(True)
         self._handle_status_change("모니터링 중: YouTube URL을 복사하세요", False)
         self.watcher.start()
 
     def stop_monitoring(self) -> None:
-        if not self.is_running:
-            return
-        self.is_running = False
+        with self._lock:
+            if not self.is_running:
+                return
+            self.is_running = False
         self.watcher.stop()
         self._on_running(False)
         self._handle_status_change("모니터링 정지", False)
@@ -102,57 +110,66 @@ class AppController:
         self.start_monitoring()
 
     def update_language(self, code: str) -> None:
-        self.settings.lang_code = code
-        self._apply_processing_settings_change(
-            f"언어 변경: {code}{' (다음 URL부터 적용)' if self.is_running else ''} / 캐시 초기화"
-        )
+        with self._lock:
+            self.settings.lang_code = code
+            self._apply_processing_settings_change(
+                f"언어 변경: {code}{' (다음 URL부터 적용)' if self.is_running else ''}"
+            )
 
     def update_timestamp(self, include: bool) -> None:
-        self.settings.include_timestamp = include
-        state = "타임스탬프 포함" if include else "타임스탬프 제외"
-        if self.is_running:
-            state = f"{state} (다음 URL부터 적용)"
-        self._apply_processing_settings_change(f"{state} / 캐시 초기화")
+        with self._lock:
+            self.settings.include_timestamp = include
+            state = "타임스탬프 포함" if include else "타임스탬프 제외"
+            if self.is_running:
+                state = f"{state} (다음 URL부터 적용)"
+            self._apply_processing_settings_change(state)
 
     def update_monitor_on_launch(self, enabled: bool) -> None:
-        self.settings.monitor_on_launch = enabled
-        self._save_settings()
+        with self._lock:
+            self.settings.monitor_on_launch = enabled
+            self._save_settings()
         self._handle_status_change("앱 실행 시 모니터링 자동 시작: 켜짐" if enabled else "앱 실행 시 모니터링 자동 시작: 꺼짐", False)
 
     def update_launch_at_login(self, enabled: bool) -> None:
         if supports_launch_at_login() and not set_launch_at_login(enabled):
             self._handle_status_change("로그인 시 앱 자동 실행 설정 변경에 실패했습니다", True)
             return
-        self.settings.launch_at_login = enabled
-        self._save_settings()
+        with self._lock:
+            self.settings.launch_at_login = enabled
+            self._save_settings()
         self._handle_status_change("로그인 시 앱 자동 실행: 켜짐" if enabled else "로그인 시 앱 자동 실행: 꺼짐", False)
 
     def update_cache_size(self, value: int) -> None:
-        self.settings.cache_max_items = max(1, int(value))
-        self.cache.set_max_items(self.settings.cache_max_items)
-        self._save_settings()
+        with self._lock:
+            self.settings.cache_max_items = max(1, int(value))
+            self.cache.set_max_items(self.settings.cache_max_items)
+            self._save_settings()
         self._on_cache(self.cache.stats())
         self._handle_status_change(f"캐시 길이 변경: {self.settings.cache_max_items}", False)
 
     def clear_history(self) -> None:
-        self.history.clear()
-        self.settings.recent_history = []
-        self._save_settings()
+        with self._lock:
+            self.history.clear()
+            self.settings.recent_history = []
+            self._save_settings()
         self._on_history([])
         self._handle_status_change("최근 처리 내역을 비웠습니다", False)
 
     def shutdown(self, window_geometry: str) -> None:
-        if self._closing:
-            return
-        self._closing = True
-        self.settings.window_geometry = window_geometry
-        self._save_settings()
+        with self._lock:
+            if self._closing:
+                return
+            self._closing = True
+            self.settings.window_geometry = window_geometry
+            self._save_settings()
         self.stop_monitoring()
 
     def _apply_processing_settings_change(self, status: str) -> None:
+        # 캐시 키가 (video_id|lang_code|timestamp)를 포함하므로 옵션이 바뀌어도
+        # 잘못된 캐시가 제공되지 않는다. 따라서 전체 캐시를 비울 필요 없이
+        # 처리 id만 리셋해 같은 URL을 새 옵션으로 다시 평가하게 한다.
         self.fetcher.set_options(self.processing_options)
         self.monitor.reset_processed()
-        self.cache.clear_all()
         self._save_settings()
         self._on_cache(self.cache.stats())
         self._handle_status_change(status, False)
@@ -161,17 +178,21 @@ class AppController:
         self._on_status(status, is_error)
 
     def _handle_processed(self, video_id: str, success: bool, detail: str) -> None:
+        # 워치 백그라운드 스레드에서 호출된다. 공유 상태(history/settings) 변경과
+        # 저장만 락 안에서 처리하고, GUI 마샬링 콜백은 락 밖에서 호출한다.
         entry = HistoryEntry(
             time=datetime.now().strftime("%H:%M:%S"),
             status="성공" if success else "실패",
             video_id=video_id,
             detail=detail,
         )
-        self.history.insert(0, entry)
-        self.history = self.history[:20]
-        self.settings.recent_history = list(self.history)
-        self._save_settings()
-        self._on_history(list(self.history))
+        with self._lock:
+            self.history.insert(0, entry)
+            self.history = self.history[:20]
+            self.settings.recent_history = list(self.history)
+            self._save_settings()
+            history_snapshot = list(self.history)
+        self._on_history(history_snapshot)
         self._on_cache(self.cache.stats())
 
     def _save_settings(self) -> None:
@@ -180,5 +201,6 @@ class AppController:
     def _sync_launch_at_login_state(self) -> None:
         if not supports_launch_at_login():
             return
-        self.settings.launch_at_login = is_launch_at_login_enabled()
-        self._save_settings()
+        with self._lock:
+            self.settings.launch_at_login = is_launch_at_login_enabled()
+            self._save_settings()

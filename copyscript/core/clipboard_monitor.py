@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 import platform
+import threading
 from typing import Callable, Protocol
 
 import pyperclip
@@ -56,6 +57,10 @@ class ClipboardMonitor:
         self._max_processed = max(10, int(max_processed))
         self._processed_ids: OrderedDict[str, None] = OrderedDict()
         self._busy = False
+        # 처리는 워치 백그라운드 스레드에서, reset/reset_processed는 메인
+        # 스레드에서 호출되므로 공유 상태(_processed_ids/_last_clipboard/_busy)를
+        # 짧은 임계구역으로 보호한다. 네트워크 fetch는 이 락 밖에서 실행한다.
+        self._lock = threading.RLock()
 
     def _current_options(self) -> ProcessingOptions:
         if self.options_provider:
@@ -70,12 +75,20 @@ class ClipboardMonitor:
                 pass
 
     def _mark_processed(self, video_id: str) -> None:
-        if video_id in self._processed_ids:
-            self._processed_ids.move_to_end(video_id)
-            return
-        self._processed_ids[video_id] = None
-        if len(self._processed_ids) > self._max_processed:
-            self._processed_ids.popitem(last=False)
+        with self._lock:
+            if video_id in self._processed_ids:
+                self._processed_ids.move_to_end(video_id)
+                return
+            self._processed_ids[video_id] = None
+            if len(self._processed_ids) > self._max_processed:
+                self._processed_ids.popitem(last=False)
+
+    def _is_processed(self, video_id: str) -> bool:
+        with self._lock:
+            if video_id in self._processed_ids:
+                self._processed_ids.move_to_end(video_id)
+                return True
+            return False
 
     def _notify(self, title: str, message: str) -> None:
         if self.notifier:
@@ -115,9 +128,10 @@ class ClipboardMonitor:
 
     def check_and_process(self) -> bool:
         current_video_id: str | None = None
-        if self._busy:
-            return False
-        self._busy = True
+        with self._lock:
+            if self._busy:
+                return False
+            self._busy = True
         try:
             try:
                 current = pyperclip.paste()
@@ -131,8 +145,7 @@ class ClipboardMonitor:
             if not current_video_id:
                 return False
             options = self._current_options()
-            if current_video_id in self._processed_ids:
-                self._processed_ids.move_to_end(current_video_id)
+            if self._is_processed(current_video_id):
                 if self._try_copy_from_cache(current_video_id, options):
                     return True
                 self._update_status(f"이미 처리됨(캐시 없음): {current_video_id[:8]}... 재시도")
@@ -177,14 +190,17 @@ class ClipboardMonitor:
                 self._emit_processed(current_video_id, False, status_message)
             return False
         finally:
-            self._busy = False
+            with self._lock:
+                self._busy = False
 
     def reset(self) -> None:
-        self._last_clipboard = ""
-        self._busy = False
+        with self._lock:
+            self._last_clipboard = ""
+            self._busy = False
 
     def reset_processed(self) -> None:
-        self._processed_ids.clear()
+        with self._lock:
+            self._processed_ids.clear()
 
     def _try_copy_from_cache(self, video_id: str, options: ProcessingOptions) -> bool:
         if not self.subtitle_cache:
