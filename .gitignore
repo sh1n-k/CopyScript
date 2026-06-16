@@ -28,3 +28,8 @@ output.txt
 .vscode/
 .claude/
 .worktrees/
+
+# Repomix
+repomix.config.*
+repomix-output.*
+repomix-output/
