@@ -63,6 +63,8 @@ Windows/Linux에서는 실행 중 창을 닫아도 앱이 종료되지 않고 �
 ./scripts/install/uninstall.sh
 ```
 
+`install.sh`와 `uninstall.sh`는 현재 OS를 감지해 macOS 또는 Linux 전용 스크립트로 위임합니다. 플랫폼별 설치/제거 흐름을 직접 확인하거나 실행해야 할 때는 해당 전용 스크립트를 사용할 수 있습니다.
+
 ### Windows
 ```powershell
 .\scripts\install\install.ps1

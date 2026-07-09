@@ -32,7 +32,7 @@
 - `copyscript/platform/`: OS-specific paths, watchers, notifications, macOS menubar, Windows/Linux tray.
 - `copyscript/ui/`: Tkinter window, panels, theme.
 - `scripts/build/`: PyInstaller build scripts.
-- `scripts/install/`: install and uninstall scripts.
+- `scripts/install/`: dispatcher scripts plus platform-specific install/uninstall scripts.
 - `packaging/pyinstaller/`: PyInstaller spec.
 - `tests/`: unit tests.
 
