@@ -10,9 +10,13 @@ from copyscript.ui import theme
 class CachePanel(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, style="Card.TFrame", padding=12)
-        ttk.Label(self, text="캐시 상태", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 6))
+        ttk.Label(self, text="캐시 상태", style="Title.TLabel").pack(
+            anchor=tk.W, pady=(0, 6)
+        )
         self.summary_var = tk.StringVar(value="0 / 0")
-        ttk.Label(self, textvariable=self.summary_var, style="CardBody.TLabel").pack(anchor=tk.W, padx=4, pady=(0, 4))
+        ttk.Label(self, textvariable=self.summary_var, style="CardBody.TLabel").pack(
+            anchor=tk.W, padx=4, pady=(0, 4)
+        )
         self.utilization_bar = tk.Canvas(
             self,
             width=1,

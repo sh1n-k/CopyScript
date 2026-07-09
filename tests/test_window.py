@@ -8,15 +8,18 @@ from copyscript.ui.window import AppWindow
 
 
 class AppWindowThreadDispatchTest(unittest.TestCase):
-    def test_run_on_ui_thread_queues_windows_tray_callbacks_from_background_thread(self):
+    def test_run_on_ui_thread_queues_windows_tray_callbacks_from_background_thread(
+        self,
+    ):
         window = AppWindow.__new__(AppWindow)
         window.root = MagicMock()
         window._ui_thread_id = 100
         window._ui_action_queue = queue.Queue()
         received = []
 
-        with patch("copyscript.ui.window.IS_WINDOWS", True), patch(
-            "copyscript.ui.window.threading.get_ident", return_value=200
+        with (
+            patch("copyscript.ui.window.IS_WINDOWS", True),
+            patch("copyscript.ui.window.threading.get_ident", return_value=200),
         ):
             window._run_on_ui_thread(lambda value: received.append(value), "queued")
 
@@ -47,8 +50,9 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         window._ui_action_queue = queue.Queue()
         window.status_panel = MagicMock()
 
-        with patch("copyscript.ui.window.IS_WINDOWS", True), patch(
-            "copyscript.ui.window.threading.get_ident", return_value=200
+        with (
+            patch("copyscript.ui.window.IS_WINDOWS", True),
+            patch("copyscript.ui.window.threading.get_ident", return_value=200),
         ):
             window._queue_status("running", False)
 
@@ -65,8 +69,9 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         window._ui_action_queue = queue.Queue()
         received = []
 
-        with patch("copyscript.ui.window.HAS_TRAY", True), patch(
-            "copyscript.ui.window.threading.get_ident", return_value=200
+        with (
+            patch("copyscript.ui.window.HAS_TRAY", True),
+            patch("copyscript.ui.window.threading.get_ident", return_value=200),
         ):
             window._run_on_ui_thread(lambda value: received.append(value), "queued")
 
@@ -79,7 +84,7 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         window = AppWindow.__new__(AppWindow)
         window.root = MagicMock()
         window._start_hidden = True
-        window.controller = types.SimpleNamespace(
+        window.__dict__["controller"] = types.SimpleNamespace(
             toggle_monitoring=MagicMock(),
             settings=types.SimpleNamespace(lang_code="ko", include_timestamp=False),
             is_running=False,

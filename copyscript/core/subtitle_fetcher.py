@@ -1,16 +1,41 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any
+import logging
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Protocol
 
 from copyscript.config.constants import DEFAULT_LANG_CODE
 from copyscript.config.models import ProcessingOptions
 
+logger = logging.getLogger(__name__)
+
 try:
     transcript_module = importlib.import_module("youtube_transcript_api")
     YouTubeTranscriptApi = transcript_module.YouTubeTranscriptApi
-except Exception:
+except ImportError:
     YouTubeTranscriptApi = None  # type: ignore[assignment]
+
+
+class TranscriptApi(Protocol):
+    def list(self, video_id: str) -> TranscriptListLike: ...
+
+
+class TranscriptLike(Protocol):
+    is_translatable: bool
+
+    def fetch(self) -> object: ...
+
+    def translate(self, target_lang: str) -> TranscriptLike: ...
+
+
+class TranscriptListLike(Protocol):
+    _manually_created_transcripts: dict[str, TranscriptLike]
+    _generated_transcripts: dict[str, TranscriptLike]
+
+    def __iter__(self) -> Iterator[TranscriptLike]: ...
+
+    def find_transcript(self, language_codes: list[str]) -> TranscriptLike: ...
 
 
 def format_timestamp(seconds: float) -> str:
@@ -22,8 +47,52 @@ def format_timestamp(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+def _format_transcript_data(
+    transcript_data: object, include_timestamp: bool
+) -> list[str]:
+    lines: list[str] = []
+    snippets = getattr(transcript_data, "snippets", None)
+    if isinstance(snippets, Iterable):
+        for snippet in snippets:
+            text = str(getattr(snippet, "text", ""))
+            if include_timestamp:
+                start = _coerce_seconds(getattr(snippet, "start", 0.0))
+                lines.append(f"[{format_timestamp(start)}] {text}")
+            else:
+                lines.append(text)
+        return lines
+
+    if not isinstance(transcript_data, Iterable):
+        return lines
+
+    for entry in transcript_data:
+        if not isinstance(entry, Mapping):
+            continue
+        text = str(entry.get("text", ""))
+        if include_timestamp:
+            start = _coerce_seconds(entry.get("start", 0.0))
+            lines.append(f"[{format_timestamp(start)}] {text}")
+        else:
+            lines.append(text)
+    return lines
+
+
+def _coerce_seconds(value: object) -> float:
+    if isinstance(value, int | float | str):
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 class SubtitleFetcher:
-    def __init__(self, preferred_lang: str = DEFAULT_LANG_CODE, include_timestamp: bool = False, api: Any = None):
+    def __init__(
+        self,
+        preferred_lang: str = DEFAULT_LANG_CODE,
+        include_timestamp: bool = False,
+        api: TranscriptApi | None = None,
+    ) -> None:
         self.preferred_lang = preferred_lang
         self.include_timestamp = include_timestamp
         if api is not None:
@@ -46,7 +115,9 @@ class SubtitleFetcher:
     def get_options(self) -> ProcessingOptions:
         return ProcessingOptions(self.preferred_lang, self.include_timestamp)
 
-    def fetch(self, video_id: str, options: ProcessingOptions | None = None) -> tuple[str, str | None]:
+    def fetch(
+        self, video_id: str, options: ProcessingOptions | None = None
+    ) -> tuple[str, str | None]:
         if self.api is None:
             return "", "자막 API를 사용할 수 없습니다"
         effective = options or self.get_options()
@@ -63,25 +134,17 @@ class SubtitleFetcher:
                 except Exception:
                     transcript = None
                 if transcript is None:
-                    transcript = self._try_translate(transcript_list, effective.lang_code)
+                    transcript = self._try_translate(
+                        transcript_list, effective.lang_code
+                    )
                 if transcript is None:
                     transcript = self._get_any_transcript(transcript_list)
             if transcript is None:
                 return "", "자막을 찾을 수 없습니다"
             transcript_data = transcript.fetch()
-            lines: list[str] = []
-            if hasattr(transcript_data, "snippets"):
-                for snippet in transcript_data.snippets:
-                    if effective.include_timestamp:
-                        lines.append(f"[{format_timestamp(snippet.start)}] {snippet.text}")
-                    else:
-                        lines.append(snippet.text)
-            else:
-                for entry in transcript_data:
-                    if effective.include_timestamp:
-                        lines.append(f"[{format_timestamp(entry['start'])}] {entry['text']}")
-                    else:
-                        lines.append(entry["text"])
+            lines = _format_transcript_data(
+                transcript_data, effective.include_timestamp
+            )
             return "\n".join(lines), None
         except Exception as error:
             error_text = str(error).lower()
@@ -93,25 +156,36 @@ class SubtitleFetcher:
                 return "", "사용 가능한 자막이 없습니다"
             return "", f"오류: {str(error)}"
 
-    def _get_any_transcript(self, transcript_list):
+    def _get_any_transcript(
+        self, transcript_list: TranscriptListLike
+    ) -> TranscriptLike | None:
         if transcript_list._manually_created_transcripts:
             return next(iter(transcript_list._manually_created_transcripts.values()))
         if transcript_list._generated_transcripts:
             return next(iter(transcript_list._generated_transcripts.values()))
         return None
 
-    def _get_video_default_transcript(self, transcript_list):
+    def _get_video_default_transcript(
+        self, transcript_list: TranscriptListLike
+    ) -> TranscriptLike | None:
         if transcript_list._generated_transcripts:
             return next(iter(transcript_list._generated_transcripts.values()))
         if transcript_list._manually_created_transcripts:
             return next(iter(transcript_list._manually_created_transcripts.values()))
         return None
 
-    def _try_translate(self, transcript_list, target_lang: str):
+    def _try_translate(
+        self, transcript_list: TranscriptListLike, target_lang: str
+    ) -> TranscriptLike | None:
         for transcript in transcript_list:
             if transcript.is_translatable:
                 try:
                     return transcript.translate(target_lang)
                 except Exception:
+                    logger.debug(
+                        "Transcript translation to %s failed",
+                        target_lang,
+                        exc_info=True,
+                    )
                     continue
         return None

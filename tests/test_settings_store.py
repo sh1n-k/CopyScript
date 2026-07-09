@@ -57,10 +57,38 @@ class SettingsStoreTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = SettingsStore()
             store.settings_path = Path(tmp) / "settings.json"
-            store.settings_path.write_text('{"recent_history": [1, {"time": "x", "status": "성공"}]}', encoding="utf-8")
+            store.settings_path.write_text(
+                '{"recent_history": [1, {"time": "x", "status": "성공"}]}',
+                encoding="utf-8",
+            )
 
             loaded = store.load()
 
             self.assertEqual(len(loaded.recent_history), 1)
             self.assertEqual(loaded.recent_history[0].time, "x")
             self.assertEqual(loaded.recent_history[0].video_id, "")
+
+    def test_non_boolean_settings_fall_back_to_defaults(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            store.settings_path = Path(tmp) / "settings.json"
+            store.settings_path.write_text(
+                """
+                {
+                  "include_timestamp": "false",
+                  "monitor_on_launch": "false",
+                  "launch_at_login": "false",
+                  "lang_code": "not-supported",
+                  "window_geometry": 123
+                }
+                """,
+                encoding="utf-8",
+            )
+
+            loaded = store.load()
+
+            self.assertFalse(loaded.include_timestamp)
+            self.assertTrue(loaded.monitor_on_launch)
+            self.assertTrue(loaded.launch_at_login)
+            self.assertEqual(loaded.lang_code, "video-default")
+            self.assertEqual(loaded.window_geometry, "")

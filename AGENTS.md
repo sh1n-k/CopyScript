@@ -2,23 +2,25 @@
 
 ## Project Overview
 - This repository contains `CopyScript`, a desktop app that watches clipboard changes and replaces copied YouTube URLs with transcript text.
-- Primary runtime targets are macOS and Windows.
+- Primary runtime targets are macOS, Windows, and Linux.
 - Main success condition for agent tasks: keep clipboard-processing behavior stable and avoid breaking startup/install flows.
 
 ## Setup Commands
 - Sync environment: `uv sync --group dev`
-- Run app (dev): `uv run python main.py`
-- Build macOS app: `./build.sh`
-- Install built app + LaunchAgent: `./install.sh`
-- Uninstall app: `./uninstall.sh`
+- Run app (dev): `uv run python -m copyscript`
+- Build macOS/Linux app: `./scripts/build/build.sh`
+- Install built macOS/Linux app + autostart entry: `./scripts/install/install.sh`
+- Uninstall app: `./scripts/install/uninstall.sh`
 
 ## Test Commands
 - Lint (preferred): `uv run ruff check .`
+- Format check: `uv run ruff format --check .`
+- Type check: `uv run pyright`
 - If `ruff` is unavailable, run at least syntax validation: `python -m compileall .`
 - Unit tests: `uv run pytest`
 - E2E (startup/install path on macOS):
-  - `./build.sh`
-  - `./install.sh`
+  - `./scripts/build/build.sh`
+  - `./scripts/install/install.sh`
   - `launchctl print gui/$(id -u)/com.ytsubtitlecopy.app`
   - `launchctl kickstart -k gui/$(id -u)/com.ytsubtitlecopy.app`
   - `pgrep -fl "CopyScript|YouTube 자막 복사"`
@@ -27,10 +29,11 @@
 - `copyscript/app/`: settings persistence and runtime lifecycle.
 - `copyscript/config/`: shared constants, language definitions, dataclasses.
 - `copyscript/core/`: URL parsing, transcript fetch, cache, clipboard pipeline.
-- `copyscript/platform/`: OS-specific paths, watchers, notifications, macOS menubar.
+- `copyscript/platform/`: OS-specific paths, watchers, notifications, macOS menubar, Windows/Linux tray.
 - `copyscript/ui/`: Tkinter window, panels, theme.
-- Root modules remain as compatibility wrappers for old entry points/imports.
-- `install.sh` / `uninstall.sh`: macOS install, LaunchAgent registration, removal.
+- `scripts/build/`: PyInstaller build scripts.
+- `scripts/install/`: install and uninstall scripts.
+- `packaging/pyinstaller/`: PyInstaller spec.
 - `tests/`: unit tests.
 
 ## Code Style And Conventions
@@ -40,7 +43,6 @@
 - GUI updates from watcher callbacks must stay thread-safe.
 - On Windows, tray/watcher callbacks must use `AppWindow._run_on_ui_thread(...)` and the internal UI queue instead of touching Tk directly.
 - On macOS, keep the existing menubar/Tk callback behavior unless there is a platform-specific reason to change it.
-- Root-level wrapper modules (`main.py`, `subtitle_fetcher.py` etc.) are compatibility entry points; prefer editing `copyscript/` modules directly.
 
 ## Safety / Security
 - Do not commit secrets, tokens, or personal machine paths.

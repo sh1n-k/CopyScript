@@ -46,8 +46,13 @@ class DummyCache:
 class ClipboardMonitorTest(unittest.TestCase):
     @patch("copyscript.core.clipboard_monitor.extract_video_id", return_value="abc123")
     @patch("copyscript.core.clipboard_monitor.pyperclip.copy")
-    @patch("copyscript.core.clipboard_monitor.pyperclip.paste", return_value="https://youtu.be/abc123")
-    def test_recopy_from_cache_when_already_processed(self, _paste, copy_mock, _extract):
+    @patch(
+        "copyscript.core.clipboard_monitor.pyperclip.paste",
+        return_value="https://youtu.be/abc123",
+    )
+    def test_recopy_from_cache_when_already_processed(
+        self, _paste, copy_mock, _extract
+    ):
         fetcher = DummyFetcher()
         cache = DummyCache(text="cached subtitle")
         results = []
@@ -69,8 +74,13 @@ class ClipboardMonitorTest(unittest.TestCase):
 
     @patch("copyscript.core.clipboard_monitor.extract_video_id", return_value="abc123")
     @patch("copyscript.core.clipboard_monitor.pyperclip.copy")
-    @patch("copyscript.core.clipboard_monitor.pyperclip.paste", return_value="https://youtu.be/abc123")
-    def test_retry_fetch_when_cache_missing_for_processed_id(self, _paste, copy_mock, _extract):
+    @patch(
+        "copyscript.core.clipboard_monitor.pyperclip.paste",
+        return_value="https://youtu.be/abc123",
+    )
+    def test_retry_fetch_when_cache_missing_for_processed_id(
+        self, _paste, copy_mock, _extract
+    ):
         fetcher = DummyFetcher()
         cache = DummyCache(text=None)
         monitor = ClipboardMonitor(fetcher, subtitle_cache=cache)
@@ -86,7 +96,10 @@ class ClipboardMonitorTest(unittest.TestCase):
 
     @patch("copyscript.core.clipboard_monitor.extract_video_id", return_value="abc123")
     @patch("copyscript.core.clipboard_monitor.pyperclip.copy")
-    @patch("copyscript.core.clipboard_monitor.pyperclip.paste", return_value="https://youtu.be/abc123")
+    @patch(
+        "copyscript.core.clipboard_monitor.pyperclip.paste",
+        return_value="https://youtu.be/abc123",
+    )
     def test_processing_uses_snapshot_options(self, _paste, _copy, _extract):
         fetcher = DummyFetcher()
         cache = DummyCache(text=None)

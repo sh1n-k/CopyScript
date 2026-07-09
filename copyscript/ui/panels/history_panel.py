@@ -10,7 +10,9 @@ from copyscript.ui import theme
 class HistoryPanel(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, style="Card.TFrame", padding=12)
-        ttk.Label(self, text="최근 처리 내역", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 6))
+        ttk.Label(self, text="최근 처리 내역", style="Title.TLabel").pack(
+            anchor=tk.W, pady=(0, 6)
+        )
         frame = ttk.Frame(self, style="Card.TFrame")
         frame.pack(fill=tk.BOTH, expand=True)
         self.listbox = tk.Listbox(
@@ -40,7 +42,9 @@ class HistoryPanel(ttk.Frame):
         self.listbox.delete(0, tk.END)
         for item in items:
             detail = item.detail if len(item.detail) <= 40 else f"{item.detail[:37]}..."
-            video_display = f"{item.video_id[:8]}..." if len(item.video_id) > 8 else item.video_id
+            video_display = (
+                f"{item.video_id[:8]}..." if len(item.video_id) > 8 else item.video_id
+            )
             line = f"{item.time or '--:--:--'} | {item.status or '-'} | {video_display or '-'} | {detail}"
             self.listbox.insert(tk.END, line)
 

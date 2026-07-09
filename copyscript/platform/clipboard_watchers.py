@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
 import platform
 import threading
 import time
-from typing import Callable
 
 import pyperclip
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ClipboardWatcher:
-    def __init__(self, on_change: Callable[[], None]):
+    def __init__(self, on_change: Callable[[], None]) -> None:
         self._on_change = on_change
 
     def start(self) -> None:
@@ -22,12 +22,14 @@ class ClipboardWatcher:
         raise NotImplementedError
 
 
-def _get_wintype_attr(wintypes_module, name: str, fallback):
+def _get_wintype_attr(wintypes_module: object, name: str, fallback: object) -> object:
     return getattr(wintypes_module, name, fallback)
 
 
 class WindowsClipboardWatcher(ClipboardWatcher):
-    def __init__(self, on_change: Callable[[], None], interval_sec: float = 0.25):
+    def __init__(
+        self, on_change: Callable[[], None], interval_sec: float = 0.25
+    ) -> None:
         super().__init__(on_change)
         self._interval = max(0.05, float(interval_sec))
         self._thread: threading.Thread | None = None
@@ -100,7 +102,9 @@ class WindowsClipboardWatcher(ClipboardWatcher):
 
 
 class MacClipboardWatcher(ClipboardWatcher):
-    def __init__(self, on_change: Callable[[], None], interval_sec: float = 0.25):
+    def __init__(
+        self, on_change: Callable[[], None], interval_sec: float = 0.25
+    ) -> None:
         super().__init__(on_change)
         self._interval = max(0.05, float(interval_sec))
         self._thread: threading.Thread | None = None
@@ -122,7 +126,10 @@ class MacClipboardWatcher(ClipboardWatcher):
     def _run(self) -> None:
         try:
             from AppKit import NSPasteboard  # type: ignore
-        except Exception:
+        except ImportError:
+            logger.warning(
+                "AppKit is not available; macOS clipboard watcher cannot start"
+            )
             return
         pasteboard = NSPasteboard.generalPasteboard()
         last = pasteboard.changeCount()
@@ -139,7 +146,7 @@ class MacClipboardWatcher(ClipboardWatcher):
             try:
                 self._on_change()
             except Exception:
-                pass
+                logger.exception("Unhandled error in clipboard change callback")
 
 
 class LinuxClipboardWatcher(ClipboardWatcher):

@@ -4,7 +4,9 @@ import logging
 import os
 import platform
 import sys
+from importlib import import_module
 from pathlib import Path
+from typing import Any
 
 from copyscript.config.constants import (
     APP_NAME,
@@ -30,8 +32,18 @@ def build_launch_command(executable_path: str | None = None) -> str:
     if getattr(sys, "frozen", False):
         return f'"{Path(sys.executable).resolve()}" --hidden'
 
-    script_path = Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0] else _default_script_path()
-    return f'"{Path(sys.executable).resolve()}" "{script_path}" --hidden'
+    if platform.system() == "Windows":
+        project_root = Path(__file__).resolve().parents[2]
+        python_path = Path(sys.executable).resolve()
+        return (
+            f'cmd /c cd /d "{project_root}" && "{python_path}" -m copyscript --hidden'
+        )
+
+    project_root = Path(__file__).resolve().parents[2]
+    python_path = Path(sys.executable).resolve()
+    return (
+        f'/bin/sh -lc \'cd "{project_root}" && "{python_path}" -m copyscript --hidden\''
+    )
 
 
 def get_startup_script_path() -> Path:
@@ -92,10 +104,6 @@ def set_launch_at_login(enabled: bool, executable_path: str | None = None) -> bo
         return False
 
 
-def _default_script_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "main.py"
-
-
 def get_linux_autostart_path() -> Path:
     config_home = os.environ.get("XDG_CONFIG_HOME")
     base_dir = Path(config_home) if config_home else Path.home() / ".config"
@@ -116,7 +124,9 @@ def build_linux_desktop_entry(command: str) -> str:
     )
 
 
-def _set_linux_launch_at_login(enabled: bool, executable_path: str | None = None) -> bool:
+def _set_linux_launch_at_login(
+    enabled: bool, executable_path: str | None = None
+) -> bool:
     autostart_path = get_linux_autostart_path()
     try:
         if enabled:
@@ -134,10 +144,12 @@ def _set_linux_launch_at_login(enabled: bool, executable_path: str | None = None
 
 
 def _has_legacy_run_key_value() -> bool:
-    import winreg
+    winreg: Any = import_module("winreg")
 
     try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH, 0, winreg.KEY_READ) as key:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH, 0, winreg.KEY_READ
+        ) as key:
             value, _ = winreg.QueryValueEx(key, WINDOWS_RUN_VALUE_NAME)
             return bool(str(value).strip())
     except FileNotFoundError:
@@ -148,7 +160,9 @@ def _has_legacy_run_key_value() -> bool:
 
 def _delete_legacy_run_key_value(winreg_module) -> None:
     try:
-        with winreg_module.CreateKey(winreg_module.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH) as key:
+        with winreg_module.CreateKey(
+            winreg_module.HKEY_CURRENT_USER, WINDOWS_RUN_KEY_PATH
+        ) as key:
             try:
                 winreg_module.DeleteValue(key, WINDOWS_RUN_VALUE_NAME)
             except FileNotFoundError:

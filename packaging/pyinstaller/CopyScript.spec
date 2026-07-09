@@ -4,7 +4,7 @@ from pathlib import Path
 import platform
 
 
-project_root = Path(SPECPATH)
+project_root = Path(SPECPATH).parents[1]
 is_macos = platform.system() == "Darwin"
 is_windows = platform.system() == "Windows"
 is_linux = platform.system() == "Linux"
@@ -27,7 +27,7 @@ if is_linux:
     hiddenimports.append("optparse")
 
 a = Analysis(
-    ["copyscript/main.py"],
+    [str(project_root / "copyscript" / "main.py")],
     pathex=[],
     binaries=[],
     datas=datas,

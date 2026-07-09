@@ -89,7 +89,9 @@ class MenuBarController:
         self._build_menu(initial_lang, initial_timestamp, initial_running)
         self._status_item.setMenu_(self._menu)
 
-    def _build_menu(self, lang_code: str, include_timestamp: bool, is_running: bool) -> None:
+    def _build_menu(
+        self, lang_code: str, include_timestamp: bool, is_running: bool
+    ) -> None:
         self._menu.removeAllItems()
         status_text = "상태: 모니터링 중" if is_running else "상태: 정지됨"
         self._status_menu_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -111,7 +113,9 @@ class MenuBarController:
         self._menu.addItem_(self._toggle_item)
         self._menu.addItem_(NSMenuItem.separatorItem())
 
-        lang_menu_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("언어", None, "")
+        lang_menu_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "언어", None, ""
+        )
         lang_submenu = NSMenu.alloc().init()
         lang_submenu.setAutoenablesItems_(False)
         self._lang_items = {}
@@ -148,7 +152,9 @@ class MenuBarController:
         self._menu.addItem_(settings_item)
         self._menu.addItem_(NSMenuItem.separatorItem())
 
-        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("종료", "quitApp:", "")
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "종료", "quitApp:", ""
+        )
         quit_item.setTarget_(self._delegate)
         self._menu.addItem_(quit_item)
 

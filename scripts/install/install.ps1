@@ -2,7 +2,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $appName = "CopyScript"
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
 $sourceDir = Join-Path $projectRoot "dist\\CopyScript"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\\CopyScript"
 $exePath = Join-Path $installDir "CopyScript.exe"
@@ -12,7 +13,7 @@ $startupScriptPath = Join-Path $startupDir "CopyScript Startup.vbs"
 $dataDir = Join-Path $env:LOCALAPPDATA "CopyScript"
 
 if (-not (Test-Path $sourceDir)) {
-    throw "빌드 결과를 찾을 수 없습니다. 먼저 .\\build.ps1 를 실행하세요."
+    throw "빌드 결과를 찾을 수 없습니다. 먼저 .\\scripts\\build\\build.ps1 를 실행하세요."
 }
 
 Write-Host "=== $appName 설치 ==="
@@ -57,4 +58,4 @@ Write-Host "  앱 실행: 즉시 트레이로 시작했습니다"
 Write-Host "  자동실행: 로그인 후 잠시 뒤 트레이로 자동 시작됩니다"
 Write-Host "  설정 데이터: $dataDir"
 Write-Host ""
-Write-Host "  제거하려면: .\\uninstall.ps1"
+Write-Host "  제거하려면: .\\scripts\\install\\uninstall.ps1"

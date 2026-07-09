@@ -1,8 +1,44 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 from copyscript.config.constants import DEFAULT_CACHE_MAX_ITEMS, DEFAULT_LANG_CODE
+
+
+class HistoryEntryDict(TypedDict):
+    time: str
+    status: str
+    video_id: str
+    detail: str
+
+
+class AppSettingsDict(TypedDict):
+    lang_code: str
+    include_timestamp: bool
+    monitor_on_launch: bool
+    launch_at_login: bool
+    cache_max_items: int
+    window_geometry: str
+    recent_history: list[HistoryEntryDict]
+
+
+class CacheEntryDict(TypedDict):
+    video_id: str
+    lang_code: str
+    include_timestamp: bool
+    line_count: int
+    updated_at: str
+
+
+class CacheStatsDict(TypedDict):
+    item_count: int
+    max_items: int
+    utilization_pct: int
+    total_chars: int
+    total_lines: int
+    total_bytes: int
+    entries_recent: list[CacheEntryDict]
 
 
 @dataclass(frozen=True)
@@ -18,7 +54,7 @@ class HistoryEntry:
     video_id: str
     detail: str
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> HistoryEntryDict:
         return {
             "time": self.time,
             "status": self.status,
@@ -27,14 +63,15 @@ class HistoryEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "HistoryEntry | None":
+    def from_dict(cls, data: object) -> HistoryEntry | None:
         if not isinstance(data, dict):
             return None
+        raw = data
         return cls(
-            time=str(data.get("time", "")),
-            status=str(data.get("status", "")),
-            video_id=str(data.get("video_id", "")),
-            detail=str(data.get("detail", "")),
+            time=str(raw.get("time", "")),
+            status=str(raw.get("status", "")),
+            video_id=str(raw.get("video_id", "")),
+            detail=str(raw.get("detail", "")),
         )
 
 
@@ -48,7 +85,7 @@ class AppSettings:
     window_geometry: str = ""
     recent_history: list[HistoryEntry] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> AppSettingsDict:
         return {
             "lang_code": self.lang_code,
             "include_timestamp": self.include_timestamp,

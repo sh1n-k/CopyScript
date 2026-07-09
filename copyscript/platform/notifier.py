@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import platform
 import subprocess
 from dataclasses import dataclass
 
 from copyscript.config.constants import APP_NAME
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,11 +28,13 @@ class Notifier:
     def _notify_windows(self, title: str, message: str) -> None:
         try:
             from win11toast import toast  # type: ignore
-        except Exception:
+        except ImportError:
+            logger.debug("win11toast is not available")
             return
         try:
             toast(title, message)
         except Exception:
+            logger.debug("Windows notification failed", exc_info=True)
             return
 
     def _notify_macos(self, title: str, message: str) -> None:
@@ -43,7 +48,8 @@ class Notifier:
                 capture_output=True,
                 text=True,
             )
-        except Exception:
+        except OSError:
+            logger.debug("macOS notification failed", exc_info=True)
             return
 
     def _notify_linux(self, title: str, message: str) -> None:

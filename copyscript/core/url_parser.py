@@ -28,8 +28,8 @@ def extract_video_id(url: str) -> str | None:
                 video_id = query_params["v"][0]
                 if len(video_id) == 11:
                     return video_id
-    except Exception:
-        pass
+    except ValueError:
+        return None
     return None
 
 

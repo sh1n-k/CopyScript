@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from subtitle_cache import SubtitleCache
+from copyscript.core.subtitle_cache import SubtitleCache
 
 
 class SubtitleCacheTest(unittest.TestCase):
@@ -77,7 +77,9 @@ class SubtitleCacheTest(unittest.TestCase):
             cache.put("v1", "ko", False, "가\n나")
             cache.put("v2", "en", True, "abc")
 
-            with patch.object(Path, "read_text", side_effect=AssertionError("unexpected read")):
+            with patch.object(
+                Path, "read_text", side_effect=AssertionError("unexpected read")
+            ):
                 stats = cache.stats()
 
             self.assertEqual(stats["total_chars"], 6)
@@ -159,6 +161,40 @@ class SubtitleCacheTest(unittest.TestCase):
             stats = cache.stats()
             self.assertEqual(stats["item_count"], 1)
             self.assertEqual(stats["total_chars"], 5)
+
+    def test_rejects_unsafe_cache_file_name_from_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            items_dir = base / "items"
+            items_dir.mkdir()
+            (base / "index.json").write_text(
+                json.dumps(
+                    {
+                        "entries": [
+                            {
+                                "key": "v1|ko|0",
+                                "video_id": "v1",
+                                "lang_code": "ko",
+                                "include_timestamp": False,
+                                "file_name": "../outside.txt",
+                                "line_count": 1,
+                                "char_count": 4,
+                                "byte_count": 4,
+                                "updated_at": "old",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            cache = SubtitleCache(
+                max_items=5,
+                index_path=base / "index.json",
+                items_dir=items_dir,
+            )
+
+            self.assertEqual(cache.stats()["item_count"], 0)
 
     def test_set_max_items_triggers_lru_eviction(self):
         with tempfile.TemporaryDirectory() as tmp:

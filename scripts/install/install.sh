@@ -4,15 +4,16 @@ set -euo pipefail
 APP_NAME="CopyScript"
 BUNDLE_ID="com.ytsubtitlecopy.app"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SYSTEM_NAME="$(uname -s)"
 
 if [ "$SYSTEM_NAME" = "Darwin" ]; then
-    SRC_APP="$SCRIPT_DIR/dist/$APP_NAME.app"
+    SRC_APP="$PROJECT_ROOT/dist/$APP_NAME.app"
     DEST_APP="/Applications/$APP_NAME.app"
     EXEC_PATH="$DEST_APP/Contents/MacOS/$APP_NAME"
     PLIST_PATH="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 else
-    SRC_APP="$SCRIPT_DIR/dist/$APP_NAME"
+    SRC_APP="$PROJECT_ROOT/dist/$APP_NAME"
     DEST_APP="$HOME/.local/lib/$APP_NAME"
     EXEC_PATH="$DEST_APP/$APP_NAME"
     DESKTOP_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP_NAME.desktop"
@@ -37,25 +38,21 @@ bootstrap_agent() {
 }
 
 install_macos() {
-    # --- 빌드 확인 ---
     if [ ! -d "$SRC_APP" ]; then
         echo "오류: $SRC_APP 을 찾을 수 없습니다."
-        echo "먼저 ./build.sh 를 실행하세요."
+        echo "먼저 ./scripts/build/build.sh 를 실행하세요."
         exit 1
     fi
 
-    # --- 기존 설치 정리 ---
     if [ -d "$DEST_APP" ]; then
         echo "기존 앱을 제거합니다..."
         rm -rf "$DEST_APP"
     fi
 
-    # --- 앱 복사 ---
     echo "앱을 /Applications 에 복사합니다..."
     cp -R "$SRC_APP" "$DEST_APP"
     xattr -cr "$DEST_APP" 2>/dev/null || true
 
-    # --- LaunchAgent 등록 ---
     echo "로그인 시 자동실행을 등록합니다..."
     mkdir -p "$HOME/Library/LaunchAgents"
 
@@ -76,10 +73,7 @@ install_macos() {
 </plist>
 EOF
 
-    # 기존 등록 해제 (있으면)
     launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
-
-    # 등록
     bootstrap_agent
 
     echo "앱을 실행합니다..."
@@ -92,13 +86,13 @@ EOF
     echo "  자동실행: 로그인 시 자동 시작됩니다"
     echo "  설정 화면: 메뉴바 CC > 설정 열기"
     echo ""
-    echo "  제거하려면: ./uninstall.sh"
+    echo "  제거하려면: ./scripts/install/uninstall.sh"
 }
 
 install_linux() {
     if [ ! -x "$SRC_APP/$APP_NAME" ]; then
         echo "오류: $SRC_APP/$APP_NAME 을 찾을 수 없습니다."
-        echo "먼저 ./build.sh 를 실행하세요."
+        echo "먼저 ./scripts/build/build.sh 를 실행하세요."
         exit 1
     fi
 
@@ -149,7 +143,7 @@ EOF
     echo "  자동실행: 로그인 시 자동 시작됩니다"
     echo "  자동실행 파일: $DESKTOP_PATH"
     echo ""
-    echo "  제거하려면: ./uninstall.sh"
+    echo "  제거하려면: ./scripts/install/uninstall.sh"
 }
 
 if [ "$SYSTEM_NAME" = "Darwin" ]; then

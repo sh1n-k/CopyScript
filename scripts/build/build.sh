@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 APP_NAME="CopyScript"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3)}"
@@ -45,7 +46,7 @@ if [ "$SYSTEM_NAME" = "Linux" ]; then
     fi
 fi
 
-SPEC_FILE="$APP_NAME.spec"
+SPEC_FILE="packaging/pyinstaller/$APP_NAME.spec"
 
 echo "=== 이전 빌드 정리 ==="
 rm -rf build dist
@@ -93,4 +94,4 @@ if [ "$SYSTEM_NAME" = "Darwin" ]; then
 else
     echo "빌드 완료: dist/$APP_NAME/$APP_NAME"
 fi
-echo "설치하려면: ./install.sh"
+echo "설치하려면: ./scripts/install/install.sh"
