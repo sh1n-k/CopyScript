@@ -33,6 +33,7 @@ class AppController:
         self.fetcher = SubtitleFetcher()
         self.fetcher.set_options(self.processing_options)
         self.notifier = Notifier()
+        self.watcher: ClipboardWatcher = create_watcher(self.handle_clipboard_change)
         self.monitor = ClipboardMonitor(
             self.fetcher,
             on_status_change=self._handle_status_change,
@@ -40,8 +41,8 @@ class AppController:
             notifier=self.notifier,
             subtitle_cache=self.cache,
             options_provider=lambda: self.processing_options,
+            on_need_recheck=self.watcher.invalidate_baseline,
         )
-        self.watcher: ClipboardWatcher = create_watcher(self.handle_clipboard_change)
         self.is_running = False
         self._closing = False
         self._on_status: StatusHandler = lambda status, is_error: None

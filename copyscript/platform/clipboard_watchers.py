@@ -21,6 +21,10 @@ class ClipboardWatcher:
     def stop(self) -> None:
         raise NotImplementedError
 
+    def invalidate_baseline(self) -> None:
+        """Force the next poll to treat the current clipboard as changed."""
+        return
+
 
 def _get_wintype_attr(wintypes_module: object, name: str, fallback: object) -> object:
     return getattr(wintypes_module, name, fallback)
@@ -64,6 +68,9 @@ class WindowsClipboardWatcher(ClipboardWatcher):
         self._thread.join(timeout=2.0)
         logger.debug("Polling thread alive after join: %s", self._thread.is_alive())
         self._thread = None
+
+    def invalidate_baseline(self) -> None:
+        self._last_sequence_number = None
 
     def _get_sequence_number(self) -> int | None:
         try:
@@ -110,6 +117,7 @@ class MacClipboardWatcher(ClipboardWatcher):
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._last_signal_ts = 0.0
+        self._last_change_count: int | None = None
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -123,6 +131,9 @@ class MacClipboardWatcher(ClipboardWatcher):
         if self._thread:
             self._thread.join(timeout=1.0)
 
+    def invalidate_baseline(self) -> None:
+        self._last_change_count = None
+
     def _run(self) -> None:
         try:
             from AppKit import NSPasteboard  # type: ignore
@@ -132,13 +143,16 @@ class MacClipboardWatcher(ClipboardWatcher):
             )
             return
         pasteboard = NSPasteboard.generalPasteboard()
-        last = pasteboard.changeCount()
+        self._last_change_count = pasteboard.changeCount()
         while not self._stop_event.is_set():
             time.sleep(self._interval)
             current = pasteboard.changeCount()
-            if current == last:
+            if (
+                self._last_change_count is not None
+                and current == self._last_change_count
+            ):
                 continue
-            last = current
+            self._last_change_count = current
             now = time.monotonic()
             if now - self._last_signal_ts < 0.05:
                 continue
@@ -175,6 +189,9 @@ class LinuxClipboardWatcher(ClipboardWatcher):
         if self._thread:
             self._thread.join(timeout=1.0)
             self._thread = None
+
+    def invalidate_baseline(self) -> None:
+        self._last_value = None
 
     def _read_clipboard(self) -> str | None:
         try:

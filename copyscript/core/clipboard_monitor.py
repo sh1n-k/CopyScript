@@ -4,7 +4,9 @@ from collections.abc import Callable
 from collections import OrderedDict
 import logging
 import platform
-from typing import Protocol
+import threading
+import time
+from typing import Literal, Protocol
 
 import pyperclip
 
@@ -15,6 +17,14 @@ logger = logging.getLogger(__name__)
 StatusCallback = Callable[[str, bool], None]
 ProcessedCallback = Callable[[str, bool, str], None]
 OptionsProvider = Callable[[], ProcessingOptions]
+RecheckCallback = Callable[[], None]
+
+ClipboardWriteStatus = Literal["ok", "mismatch", "read_error", "copy_error"]
+
+_WRITE_MAX_ATTEMPTS = 3
+_WRITE_RETRY_DELAYS_SEC = (0.05, 0.1)
+_POST_COPY_SETTLE_SEC = 0.03
+_PASTE_VERIFY_TIMEOUT_SEC = 0.75
 
 
 class FetcherLike(Protocol):
@@ -39,6 +49,10 @@ class NotifierLike(Protocol):
     def notify(self, title: str, message: str) -> None: ...
 
 
+def _normalize_clipboard_text(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 class ClipboardMonitor:
     def __init__(
         self,
@@ -49,6 +63,7 @@ class ClipboardMonitor:
         subtitle_cache: CacheLike | None = None,
         max_processed: int = 100,
         options_provider: OptionsProvider | None = None,
+        on_need_recheck: RecheckCallback | None = None,
     ) -> None:
         self.fetcher = fetcher
         self.on_status_change = on_status_change
@@ -56,10 +71,13 @@ class ClipboardMonitor:
         self.notifier = notifier
         self.subtitle_cache = subtitle_cache
         self.options_provider = options_provider
+        self.on_need_recheck = on_need_recheck
         self._last_clipboard = ""
         self._max_processed = max(10, int(max_processed))
         self._processed_ids: OrderedDict[str, None] = OrderedDict()
         self._busy = False
+        # One automatic recheck per video after a clipboard write failure.
+        self._auto_recheck_video_id: str | None = None
 
     def _current_options(self) -> ProcessingOptions:
         if self.options_provider:
@@ -92,6 +110,14 @@ class ClipboardMonitor:
             except Exception:
                 logger.exception("Unhandled error in processed callback")
 
+    def _request_recheck(self) -> None:
+        if not self.on_need_recheck:
+            return
+        try:
+            self.on_need_recheck()
+        except Exception:
+            logger.exception("Unhandled error in recheck callback")
+
     def _clipboard_access_error(self) -> str:
         system = platform.system()
         if system == "Darwin":
@@ -110,6 +136,17 @@ class ClipboardMonitor:
             return "클립보드 복사 실패 (보안 앱/원격 앱 간섭 여부 확인)"
         return "클립보드 복사 실패"
 
+    def _clipboard_verify_mismatch_error(self) -> str:
+        return "클립보드 복사 실패 (내용이 반영되지 않음)"
+
+    def _clipboard_verify_read_error(self) -> str:
+        system = platform.system()
+        if system == "Darwin":
+            return "클립보드 확인 실패 (macOS: 클립보드 접근 권한 확인)"
+        if system == "Windows":
+            return "클립보드 확인 실패 (다른 앱의 클립보드 점유 여부 확인)"
+        return "클립보드 확인 실패"
+
     def _friendly_error(self, error: str) -> str:
         if "자막이 비활성화된 영상입니다" in error:
             return f"{error} (다른 영상 또는 자동 생성 자막 영상으로 시도)"
@@ -118,6 +155,104 @@ class ClipboardMonitor:
         if "사용 가능한 자막이 없습니다" in error:
             return f"{error} (언어를 '영상 기본 언어' 또는 'Auto (any)'로 시도)"
         return error
+
+    def _message_for_write_status(self, status: ClipboardWriteStatus) -> str:
+        if status == "mismatch":
+            return self._clipboard_verify_mismatch_error()
+        if status == "read_error":
+            return self._clipboard_verify_read_error()
+        return self._clipboard_copy_error()
+
+    def _paste_with_timeout(
+        self, timeout_sec: float = _PASTE_VERIFY_TIMEOUT_SEC
+    ) -> tuple[str | None, bool]:
+        box: list[object] = []
+        error: list[Exception] = []
+
+        def worker() -> None:
+            try:
+                box.append(pyperclip.paste())
+            except Exception as exc:
+                error.append(exc)
+
+        thread = threading.Thread(
+            target=worker, name="clipboard-paste-verify", daemon=True
+        )
+        thread.start()
+        thread.join(timeout=timeout_sec)
+        if thread.is_alive():
+            logger.warning(
+                "Clipboard paste verification timed out after %ss", timeout_sec
+            )
+            return None, False
+        if error:
+            logger.debug(
+                "Clipboard paste verification failed: %s",
+                error[0],
+                exc_info=error[0],
+            )
+            return None, False
+        if not box:
+            return None, False
+        value = box[0]
+        if not isinstance(value, str):
+            return None, False
+        return value, True
+
+    def _copy_and_verify(self, text: str) -> ClipboardWriteStatus:
+        last_status: ClipboardWriteStatus = "copy_error"
+        for attempt in range(_WRITE_MAX_ATTEMPTS):
+            try:
+                pyperclip.copy(text)
+            except Exception:
+                last_status = "copy_error"
+                logger.debug(
+                    "Clipboard copy failed on attempt %s/%s",
+                    attempt + 1,
+                    _WRITE_MAX_ATTEMPTS,
+                    exc_info=True,
+                )
+            else:
+                if _POST_COPY_SETTLE_SEC > 0:
+                    time.sleep(_POST_COPY_SETTLE_SEC)
+                actual, read_ok = self._paste_with_timeout()
+                if not read_ok:
+                    last_status = "read_error"
+                elif _normalize_clipboard_text(
+                    actual or ""
+                ) == _normalize_clipboard_text(text):
+                    return "ok"
+                else:
+                    last_status = "mismatch"
+                    logger.debug(
+                        "Clipboard verify mismatch on attempt %s/%s "
+                        "(expected_len=%s actual_len=%s)",
+                        attempt + 1,
+                        _WRITE_MAX_ATTEMPTS,
+                        len(text),
+                        len(actual or ""),
+                    )
+            if attempt < _WRITE_MAX_ATTEMPTS - 1:
+                delay = _WRITE_RETRY_DELAYS_SEC[
+                    min(attempt, len(_WRITE_RETRY_DELAYS_SEC) - 1)
+                ]
+                time.sleep(delay)
+        return last_status
+
+    def _fail_clipboard_write(
+        self, video_id: str, status: ClipboardWriteStatus
+    ) -> None:
+        message = self._message_for_write_status(status)
+        self._last_clipboard = ""
+        self._update_status(message, is_error=True)
+        self._notify("자막 복사 실패", f"{video_id} - {message}")
+        self._emit_processed(video_id, False, message)
+        # Allow one automatic same-URL retry via watcher baseline invalidation.
+        if self._auto_recheck_video_id != video_id:
+            self._auto_recheck_video_id = video_id
+            self._request_recheck()
+        else:
+            self._auto_recheck_video_id = None
 
     def check_and_process(self) -> bool:
         current_video_id: str | None = None
@@ -141,13 +276,23 @@ class ClipboardMonitor:
             if not current_video_id:
                 return False
             options = self._current_options()
-            if current_video_id in self._processed_ids:
-                self._processed_ids.move_to_end(current_video_id)
-                if self._try_copy_from_cache(current_video_id, options):
+            prefer_cache = (
+                current_video_id in self._processed_ids
+                or self._auto_recheck_video_id == current_video_id
+            )
+            if prefer_cache:
+                if current_video_id in self._processed_ids:
+                    self._processed_ids.move_to_end(current_video_id)
+                cache_result = self._try_copy_from_cache(current_video_id, options)
+                if cache_result is True:
                     return True
-                self._update_status(
-                    f"이미 처리됨(캐시 없음): {current_video_id[:8]}... 재시도"
-                )
+                if cache_result is False:
+                    # Write attempted and failed; do not fall through to fetch.
+                    return False
+                if current_video_id in self._processed_ids:
+                    self._update_status(
+                        f"이미 처리됨(캐시 없음): {current_video_id[:8]}... 재시도"
+                    )
             self._update_status(f"URL 감지됨: {current_video_id[:8]}...")
             self._update_status(f"자막 추출 중: {current_video_id}...")
             text, error = self.fetcher.fetch(current_video_id, options=options)
@@ -163,18 +308,16 @@ class ClipboardMonitor:
                 self._notify("자막 복사 실패", f"{current_video_id} - {status_message}")
                 self._emit_processed(current_video_id, False, status_message)
                 return False
+            # Preserve extract result even if clipboard write later fails.
+            self._put_cache(current_video_id, text, options)
             self._update_status("클립보드 복사 중...")
-            try:
-                pyperclip.copy(text)
-            except Exception:
-                status_message = self._clipboard_copy_error()
-                self._update_status(status_message, is_error=True)
-                self._notify("자막 복사 실패", f"{current_video_id} - {status_message}")
-                self._emit_processed(current_video_id, False, status_message)
+            write_status = self._copy_and_verify(text)
+            if write_status != "ok":
+                self._fail_clipboard_write(current_video_id, write_status)
                 return False
             self._last_clipboard = text
             self._mark_processed(current_video_id)
-            self._put_cache(current_video_id, text, options)
+            self._auto_recheck_video_id = None
             line_count = text.count("\n") + 1
             status_message = f"완료! {line_count}줄 복사됨"
             self._update_status(status_message)
@@ -194,28 +337,31 @@ class ClipboardMonitor:
     def reset(self) -> None:
         self._last_clipboard = ""
         self._busy = False
+        self._auto_recheck_video_id = None
 
     def reset_processed(self) -> None:
         self._processed_ids.clear()
+        self._auto_recheck_video_id = None
 
-    def _try_copy_from_cache(self, video_id: str, options: ProcessingOptions) -> bool:
+    def _try_copy_from_cache(
+        self, video_id: str, options: ProcessingOptions
+    ) -> bool | None:
+        """Return True on success, False on write failure, None on cache miss."""
         if not self.subtitle_cache:
-            return False
+            return None
         cached_text = self.subtitle_cache.get(
             video_id, options.lang_code, options.include_timestamp
         )
         if not cached_text:
-            return False
+            return None
         self._update_status("캐시 자막 복사 중...")
-        try:
-            pyperclip.copy(cached_text)
-        except Exception:
-            status_message = self._clipboard_copy_error()
-            self._update_status(status_message, is_error=True)
-            self._notify("자막 복사 실패", f"{video_id} - {status_message}")
-            self._emit_processed(video_id, False, status_message)
+        write_status = self._copy_and_verify(cached_text)
+        if write_status != "ok":
+            self._fail_clipboard_write(video_id, write_status)
             return False
         self._last_clipboard = cached_text
+        self._mark_processed(video_id)
+        self._auto_recheck_video_id = None
         line_count = cached_text.count("\n") + 1
         status_message = f"이미 처리됨: 캐시 재복사 완료 ({line_count}줄)"
         self._update_status(status_message)
