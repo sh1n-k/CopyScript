@@ -40,7 +40,7 @@ $launchCommand = "`"$exePath`" --hidden"
 $escapedLaunchCommand = $launchCommand.Replace('"', '""')
 $startupScript = @"
 Set shell = CreateObject("WScript.Shell")
-WScript.Sleep 15000
+WScript.Sleep 5000
 shell.Run "$escapedLaunchCommand", 0, False
 "@
 Set-Content -LiteralPath $startupScriptPath -Value $startupScript -Encoding Unicode

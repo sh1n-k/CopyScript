@@ -59,7 +59,7 @@ class LaunchAtLoginTest(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertTrue(enabled)
-        self.assertIn("WScript.Sleep 15000", script_content)
+        self.assertIn("WScript.Sleep 5000", script_content)
         self.assertIn(
             'shell.Run """C:\\Programs\\CopyScript.exe"" --hidden", 0, False',
             script_content,
