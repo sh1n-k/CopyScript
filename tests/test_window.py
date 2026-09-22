@@ -18,7 +18,7 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         received = []
 
         with (
-            patch("copyscript.ui.window.IS_WINDOWS", True),
+            patch("copyscript.ui.window.HAS_TRAY", True),
             patch("copyscript.ui.window.threading.get_ident", return_value=200),
         ):
             window._run_on_ui_thread(lambda value: received.append(value), "queued")
@@ -51,7 +51,7 @@ class AppWindowThreadDispatchTest(unittest.TestCase):
         window.status_panel = MagicMock()
 
         with (
-            patch("copyscript.ui.window.IS_WINDOWS", True),
+            patch("copyscript.ui.window.HAS_TRAY", True),
             patch("copyscript.ui.window.threading.get_ident", return_value=200),
         ):
             window._queue_status("running", False)
