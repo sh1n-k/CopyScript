@@ -1,6 +1,8 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from copyscript.app.settings_store import SettingsStore
 from copyscript.config.models import AppSettings, HistoryEntry
@@ -92,3 +94,67 @@ class SettingsStoreTest(unittest.TestCase):
             self.assertTrue(loaded.launch_at_login)
             self.assertEqual(loaded.lang_code, "video-default")
             self.assertEqual(loaded.window_geometry, "")
+
+    def test_save_replaces_file_without_leaving_temp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            path = Path(tmp) / "settings.json"
+            store.settings_path = path
+
+            store.save(AppSettings(lang_code="en"))
+            store.save(AppSettings(lang_code="ko"))
+
+            self.assertEqual(
+                [item.name for item in Path(tmp).iterdir()], ["settings.json"]
+            )
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(loaded["lang_code"], "ko")
+
+    def test_save_preserves_existing_file_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            path = Path(tmp) / "settings.json"
+            store.settings_path = path
+            path.write_text("{}", encoding="utf-8")
+            path.chmod(0o640)
+
+            store.save(AppSettings(lang_code="en"))
+
+            self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+
+    def test_failed_replace_keeps_original_and_removes_temp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            path = Path(tmp) / "settings.json"
+            store.settings_path = path
+            store.save(AppSettings(lang_code="en"))
+            original = path.read_text(encoding="utf-8")
+
+            with (
+                patch(
+                    "copyscript.app.settings_store.os.replace",
+                    side_effect=OSError("replace failed"),
+                ),
+                self.assertLogs(
+                    "copyscript.app.settings_store", level="WARNING"
+                ) as logs,
+            ):
+                store.save(AppSettings(lang_code="ko"))
+
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+            self.assertEqual(
+                [item.name for item in Path(tmp).iterdir()], ["settings.json"]
+            )
+            self.assertTrue(
+                any("Failed to save settings" in message for message in logs.output)
+            )
+
+    def test_missing_parent_directory_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SettingsStore()
+            store.settings_path = Path(tmp) / "missing" / "settings.json"
+
+            with self.assertLogs("copyscript.app.settings_store", level="WARNING"):
+                store.save(AppSettings(lang_code="en"))
+
+            self.assertFalse(store.settings_path.exists())

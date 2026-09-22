@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from json import JSONDecodeError
+from pathlib import Path
 
 from copyscript.config.constants import DEFAULT_CACHE_MAX_ITEMS, MAX_HISTORY_ITEMS
 from copyscript.config.languages import SUPPORTED_LANGUAGES
@@ -54,14 +57,33 @@ class SettingsStore:
     def save(self, settings: AppSettings) -> None:
         payload = settings.to_dict()
         try:
-            self.settings_path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            self._write_atomic(json.dumps(payload, ensure_ascii=False, indent=2))
         except OSError:
             logger.warning(
                 "Failed to save settings to %s", self.settings_path, exc_info=True
             )
+
+    def _write_atomic(self, text: str) -> None:
+        # 같은 디렉터리의 임시 파일에 모두 기록한 뒤 교체한다.
+        # 저장 중 종료되거나 쓰기가 겹쳐도 settings.json이 잘리지 않는다.
+        fd, tmp_name = tempfile.mkstemp(
+            dir=self.settings_path.parent,
+            prefix=".settings-",
+            suffix=".tmp",
+        )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(text)
+            if self.settings_path.exists():
+                os.chmod(tmp_path, self.settings_path.stat().st_mode & 0o777)
+            os.replace(tmp_path, self.settings_path)
+        except BaseException:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
 
     def _sanitize_history(self, history_data: object) -> list[HistoryEntry]:
         if not isinstance(history_data, list):
