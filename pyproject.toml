@@ -20,6 +20,9 @@ dev = [
     "pyright>=1.1.409",
     "pytest>=9.0.3",
     "ruff>=0.15.10",
+    # macOS에서도 pyright가 tray import를 해석하도록 둔다.
+    "pillow>=12.2.0",
+    "pystray>=0.19.5",
 ]
 
 [tool.pytest.ini_options]
